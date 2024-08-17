@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">JoyMouse</string>
+
+    <string name="button_open_accessibility_settings">Open accessibility settings</string>
 </resources>
