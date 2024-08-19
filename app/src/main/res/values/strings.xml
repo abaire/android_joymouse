@@ -2,4 +2,11 @@
     <string name="app_name">JoyMouse</string>
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
+
+    <string name="enable_service_instructions">The JoyMouse service must be enabled in accessibility settings.</string>
+    <string name="permission_header">Some additional permissions are requested to operate this application:</string>
+
+    <string name="icon_description_mouse_overlay">An icon showing a mouse cursor</string>
+    <string name="permission_manage_overlay_label">Manage overlay permission</string>
+    <string name="permission_manage_overlay_description">Allow an overlay to be rendered showing the cursor position</string>
 </resources>

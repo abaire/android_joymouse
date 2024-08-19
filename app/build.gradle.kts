@@ -9,7 +9,7 @@ android {
 
   defaultConfig {
     applicationId = "work.bearbrains.joymouse"
-    minSdk = 31
+    minSdk = 34
     targetSdk = 34
     versionCode = 1
     versionName = "1.0"
@@ -56,4 +56,6 @@ dependencies {
   implementation(libs.androidx.ui)
 
   implementation(libs.androidx.material3)
+
+  implementation(libs.accompanist.permissions)
 }
