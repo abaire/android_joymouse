@@ -8,7 +8,6 @@ import android.graphics.Path
 import android.hardware.input.InputManager
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.view.InputDevice
 import android.view.InputDevice.SOURCE_JOYSTICK
@@ -31,10 +30,28 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   private val tapTimeout = ViewConfiguration.getTapTimeout()
 
   var cursorView: CursorView? = null
+  val cursorDisplayTimeoutMilliseconds = 1500L
+
+  private val cursorHider =
+      object : Runnable {
+        override fun run() {
+          Log.d(TAG, "Hiding cursor due to inactivity")
+          cursorView?.hideCursor()
+        }
+
+        /** Queues this repeater for future processing. */
+        fun restart() {
+          cancel()
+          handler.postDelayed(this, cursorDisplayTimeoutMilliseconds)
+        }
+
+        /** Cancels any pending runs for this repeater. */
+        fun cancel() {
+          handler.removeCallbacks(this)
+        }
+      }
 
   override fun onServiceConnected() {
-    val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-
     cursorView =
         CursorView(
             ImageView(this).apply {
@@ -101,6 +118,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   private fun updateCursor(state: CursorState) {
     cursorView?.apply {
       updatePosition(state.pointerX, state.pointerY)
+      cursorHider.restart()
       show()
     }
 

@@ -3,6 +3,7 @@ package work.bearbrains.joymouse
 import android.graphics.PixelFormat
 import android.view.Gravity
 import android.view.View
+import android.view.ViewManager
 import android.view.WindowManager
 
 /** Handles rendering a mouse cursor. */
@@ -54,11 +55,13 @@ class CursorView(private val view: View, private val windowManager: WindowManage
 
   /** Hides the cursor. */
   fun hideCursor() {
-    if (isShown) {
+    if (!isShown) {
       return
     }
 
     isShown = false
-    view.let { (it.parent as? WindowManager)?.removeView(it) }
+    view.let {
+      windowManager.removeView(it)
+    }
   }
 }
