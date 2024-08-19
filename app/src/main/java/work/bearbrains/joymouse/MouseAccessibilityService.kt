@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Path
 import android.hardware.input.InputManager
 import android.os.Handler
@@ -83,6 +84,13 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
     inputManager.unregisterInputDeviceListener(this)
     return super.onUnbind(intent)
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    measureDisplays()
+    detectJoystickDevices(getSystemService(Context.INPUT_SERVICE) as InputManager)
+
+    super.onConfigurationChanged(newConfig)
   }
 
   override fun onKeyEvent(event: KeyEvent?): Boolean {
@@ -203,8 +211,13 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     //    }
   }
 
-  private fun detectJoystickDevices(inputManager: InputManager) {
+  private fun destroyCursors() {
+    joystickDeviceIdsToState.forEach { (_, state) -> state.cancelRepeater() }
     joystickDeviceIdsToState.clear()
+  }
+
+  private fun detectJoystickDevices(inputManager: InputManager) {
+    destroyCursors()
 
     for (deviceId in inputManager.inputDeviceIds) {
       inputManager.getInputDevice(deviceId)?.let { device ->
