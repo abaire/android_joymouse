@@ -124,7 +124,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     }
 
     // TODO: Only inject a gesture if the trigger is currently held down
-    injectMoveGesture(state)
+    //    injectMoveGesture(state)
   }
 
   private fun injectMoveGesture(state: CursorState) {

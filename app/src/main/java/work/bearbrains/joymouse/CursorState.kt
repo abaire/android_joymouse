@@ -80,8 +80,8 @@ private constructor(
   var lastPointerY = pointerY
     private set
 
-  /** The velocity of the pointer. */
-  var velocityPixelsPerNanosecond: Float =
+  /** The default velocity of the pointer. */
+  val defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(windowWidth, windowHeight)
 
   private var lastEventTimeMilliseconds: Long? = null
@@ -89,6 +89,10 @@ private constructor(
   /** Indicates whether any measurable deflection has been applied. */
   val hasDeflection: Boolean
     get() = xAxis.deflection != 0f || yAxis.deflection != 0f
+
+  /** Indicates that the cursor speed should be set to "fast". */
+  val isFastCursorEnabled: Boolean
+    get() = buttonStates.getOrDefault(KeyEvent.KEYCODE_BUTTON_L2, false)
 
   /** Stops repeating events for this state. */
   fun cancelRepeater() {
@@ -150,8 +154,15 @@ private constructor(
       return
     }
 
-    val dX = xAxis.deflection * timeDelta * velocityPixelsPerNanosecond
-    val dY = yAxis.deflection * timeDelta * velocityPixelsPerNanosecond
+    val velocity =
+      if (isFastCursorEnabled) {
+        defaultVelocityPixelsPerNanosecond * FAST_CURSOR_MODIFIER
+      } else {
+        defaultVelocityPixelsPerNanosecond
+      }
+
+    val dX = xAxis.deflection * timeDelta * velocity
+    val dY = yAxis.deflection * timeDelta * velocity
 
     pointerX = (pointerX + dX).coerceIn(0f, windowWidth)
     pointerY = (pointerY + dY).coerceIn(0f, windowHeight)
@@ -185,6 +196,8 @@ private constructor(
   companion object {
     const val TAG = "CursorState"
     private const val INPUT_GAP_NANOSECONDS = 150_000_000L
+
+    private const val FAST_CURSOR_MODIFIER = 2f
 
     /**
      * Creates a new [JoystickState] instance for the given device using the given axes. The axes
