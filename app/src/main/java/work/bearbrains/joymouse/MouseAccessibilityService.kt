@@ -8,6 +8,8 @@ import android.graphics.Path
 import android.hardware.input.InputManager
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.util.Log
 import android.view.InputDevice
 import android.view.InputDevice.SOURCE_JOYSTICK
 import android.view.KeyEvent
@@ -15,6 +17,8 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.ImageView
+import androidx.core.content.ContextCompat
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService : AccessibilityService(), InputManager.InputDeviceListener {
@@ -26,7 +30,22 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private val tapTimeout = ViewConfiguration.getTapTimeout()
 
+  var cursorView: CursorView? = null
+
   override fun onServiceConnected() {
+    val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+
+    cursorView =
+        CursorView(
+            ImageView(this).apply {
+              val drawable =
+                  ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
+              setImageDrawable(drawable)
+
+              fitsSystemWindows = false
+            },
+            getSystemService(Context.WINDOW_SERVICE) as WindowManager)
+
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
     serviceInfo = info
@@ -82,6 +101,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   private fun updateCursor(state: CursorState) {
+    cursorView?.apply {
+      updatePosition(state.pointerX, state.pointerY)
+      show()
+    }
 
     // TODO: Only inject a gesture if the trigger is currently held down
     injectMoveGesture(state)
@@ -172,6 +195,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   private companion object {
+    const val TAG = "MouseAccessibilityService"
+
     val X_AXIS = MotionEvent.AXIS_Z
     val Y_AXIS = MotionEvent.AXIS_RZ
   }
