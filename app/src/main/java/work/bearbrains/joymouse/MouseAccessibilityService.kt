@@ -33,35 +33,36 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   val cursorDisplayTimeoutMilliseconds = 1500L
 
   private val cursorHider =
-      object : Runnable {
-        override fun run() {
-          Log.d(TAG, "Hiding cursor due to inactivity")
-          cursorView?.hideCursor()
-        }
-
-        /** Queues this repeater for future processing. */
-        fun restart() {
-          cancel()
-          handler.postDelayed(this, cursorDisplayTimeoutMilliseconds)
-        }
-
-        /** Cancels any pending runs for this repeater. */
-        fun cancel() {
-          handler.removeCallbacks(this)
-        }
+    object : Runnable {
+      override fun run() {
+        Log.d(TAG, "Hiding cursor due to inactivity")
+        cursorView?.hideCursor()
       }
+
+      /** Queues this repeater for future processing. */
+      fun restart() {
+        cancel()
+        handler.postDelayed(this, cursorDisplayTimeoutMilliseconds)
+      }
+
+      /** Cancels any pending runs for this repeater. */
+      fun cancel() {
+        handler.removeCallbacks(this)
+      }
+    }
 
   override fun onServiceConnected() {
     cursorView =
-        CursorView(
-            ImageView(this).apply {
-              val drawable =
-                  ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
-              setImageDrawable(drawable)
+      CursorView(
+        ImageView(this).apply {
+          val drawable =
+            ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
+          setImageDrawable(drawable)
 
-              fitsSystemWindows = false
-            },
-            getSystemService(Context.WINDOW_SERVICE) as WindowManager)
+          fitsSystemWindows = false
+        },
+        getSystemService(Context.WINDOW_SERVICE) as WindowManager
+      )
 
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
@@ -140,14 +141,15 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     gestureBuilder.addStroke(stroke)
 
     val wasDispatched =
-        dispatchGesture(
-            gestureBuilder.build(),
-            object : GestureResultCallback() {
-              override fun onCompleted(gestureDescription: GestureDescription) {}
+      dispatchGesture(
+        gestureBuilder.build(),
+        object : GestureResultCallback() {
+          override fun onCompleted(gestureDescription: GestureDescription) {}
 
-              override fun onCancelled(gestureDescription: GestureDescription) {}
-            },
-            handler)
+          override fun onCancelled(gestureDescription: GestureDescription) {}
+        },
+        handler
+      )
 
     if (!wasDispatched) {
       println("!!! Error: dispatchGesture failed!")
@@ -206,8 +208,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private fun addJoystickDevice(device: InputDevice) {
     joystickDeviceIdsToState[device.id] =
-        CursorState.create(
-            device, handler, X_AXIS, Y_AXIS, windowWidth, windowHeight, ::updateCursor)
+      CursorState.create(device, handler, X_AXIS, Y_AXIS, windowWidth, windowHeight, ::updateCursor)
   }
 
   private companion object {

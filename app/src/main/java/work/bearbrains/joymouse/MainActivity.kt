@@ -21,29 +21,29 @@ class MainActivity : ComponentActivity() {
 
     overlayEnabledState.value = Settings.canDrawOverlays(this)
     val manageOverlayActivityResult =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-          if (result.resultCode == Activity.RESULT_OK) {
-            overlayEnabledState.value = Settings.canDrawOverlays(this)
-          }
+      registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+          overlayEnabledState.value = Settings.canDrawOverlays(this)
         }
+      }
 
     setContent {
       JoyMouseTheme {
         MainScreen(
-            overlayEnabledState.value,
-            modifier = Modifier.fillMaxSize(),
-            onLaunchAccessibilitySettings = {
-              val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-              startActivity(intent)
-            },
-            onEnableOverlay = {
-              val intent =
-                  Intent(
-                      Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                      Uri.parse("package:$packageName"),
-                  )
-              manageOverlayActivityResult.launch(intent)
-            },
+          overlayEnabledState.value,
+          modifier = Modifier.fillMaxSize(),
+          onLaunchAccessibilitySettings = {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+          },
+          onEnableOverlay = {
+            val intent =
+              Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName"),
+              )
+            manageOverlayActivityResult.launch(intent)
+          },
         )
       }
     }

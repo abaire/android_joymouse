@@ -11,58 +11,58 @@ import kotlin.math.absoluteValue
 /** Encapsulates state for a virtual cursor that is controlled by axes from [MotionEvent]s. */
 class CursorState
 private constructor(
-    /** The ID of the physical device that this repeater is associated with. */
-    val deviceId: Int,
-    private val handler: Handler,
-    private val xAxis: RangedAxis,
-    private val yAxis: RangedAxis,
-    private val buttonAxes: List<ButtonAxis>,
-    private val windowWidth: Float,
-    private val windowHeight: Float,
-    private val onUpdate: (CursorState) -> Unit,
+  /** The ID of the physical device that this repeater is associated with. */
+  val deviceId: Int,
+  private val handler: Handler,
+  private val xAxis: RangedAxis,
+  private val yAxis: RangedAxis,
+  private val buttonAxes: List<ButtonAxis>,
+  private val windowWidth: Float,
+  private val windowHeight: Float,
+  private val onUpdate: (CursorState) -> Unit,
 ) {
 
   private val eventRepeater =
-      object : Runnable {
-        private val REPEAT_DELAY_MILLISECONDS = 10L
+    object : Runnable {
+      private val REPEAT_DELAY_MILLISECONDS = 10L
 
-        override fun run() {
-          applyDeflection()
-          restart()
-        }
-
-        /** Queues this repeater for future processing. */
-        fun restart() {
-          handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
-        }
-
-        /** Cancels any pending runs for this repeater. */
-        fun cancel() {
-          handler.removeCallbacks(this)
-        }
+      override fun run() {
+        applyDeflection()
+        restart()
       }
 
+      /** Queues this repeater for future processing. */
+      fun restart() {
+        handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
+      }
+
+      /** Cancels any pending runs for this repeater. */
+      fun cancel() {
+        handler.removeCallbacks(this)
+      }
+    }
+
   private val buttonStates =
-      mutableMapOf(
-          KeyEvent.KEYCODE_BUTTON_A to false,
-          KeyEvent.KEYCODE_BUTTON_B to false,
-          KeyEvent.KEYCODE_BUTTON_X to false,
-          KeyEvent.KEYCODE_BUTTON_Y to false,
-          KeyEvent.KEYCODE_BUTTON_L1 to false,
-          KeyEvent.KEYCODE_BUTTON_L2 to false,
-          KeyEvent.KEYCODE_BUTTON_R1 to false,
-          KeyEvent.KEYCODE_BUTTON_R2 to false,
-          KeyEvent.KEYCODE_BUTTON_SELECT to false,
-          KeyEvent.KEYCODE_BUTTON_START to false,
-          KeyEvent.KEYCODE_BUTTON_THUMBL to false,
-          KeyEvent.KEYCODE_BUTTON_THUMBR to false,
-          KeyEvent.KEYCODE_MEDIA_RECORD to false,
-          KeyEvent.KEYCODE_BUTTON_MODE to false, // Xbox button
-          KeyEvent.KEYCODE_DPAD_LEFT to false,
-          KeyEvent.KEYCODE_DPAD_RIGHT to false,
-          KeyEvent.KEYCODE_DPAD_UP to false,
-          KeyEvent.KEYCODE_DPAD_DOWN to false,
-      )
+    mutableMapOf(
+      KeyEvent.KEYCODE_BUTTON_A to false,
+      KeyEvent.KEYCODE_BUTTON_B to false,
+      KeyEvent.KEYCODE_BUTTON_X to false,
+      KeyEvent.KEYCODE_BUTTON_Y to false,
+      KeyEvent.KEYCODE_BUTTON_L1 to false,
+      KeyEvent.KEYCODE_BUTTON_L2 to false,
+      KeyEvent.KEYCODE_BUTTON_R1 to false,
+      KeyEvent.KEYCODE_BUTTON_R2 to false,
+      KeyEvent.KEYCODE_BUTTON_SELECT to false,
+      KeyEvent.KEYCODE_BUTTON_START to false,
+      KeyEvent.KEYCODE_BUTTON_THUMBL to false,
+      KeyEvent.KEYCODE_BUTTON_THUMBR to false,
+      KeyEvent.KEYCODE_MEDIA_RECORD to false,
+      KeyEvent.KEYCODE_BUTTON_MODE to false, // Xbox button
+      KeyEvent.KEYCODE_DPAD_LEFT to false,
+      KeyEvent.KEYCODE_DPAD_RIGHT to false,
+      KeyEvent.KEYCODE_DPAD_UP to false,
+      KeyEvent.KEYCODE_DPAD_DOWN to false,
+    )
 
   /** The current X coordinate of the pointer (in pixels) */
   var pointerX = windowWidth * 0.5f
@@ -82,7 +82,7 @@ private constructor(
 
   /** The velocity of the pointer. */
   var velocityPixelsPerNanosecond: Float =
-      calculateDefaultVelocityForWindow(windowWidth, windowHeight)
+    calculateDefaultVelocityForWindow(windowWidth, windowHeight)
 
   private var lastEventTimeMilliseconds: Long? = null
 
@@ -191,36 +191,42 @@ private constructor(
      * must be `MotionEvent.AXIS_*` constants (e.g., `MotionEvent.AXIS_Z`).
      */
     fun create(
-        device: InputDevice,
-        handler: Handler,
-        xAxis: Int,
-        yAxis: Int,
-        windowWidth: Float,
-        windowHeight: Float,
-        onUpdate: (CursorState) -> Unit,
+      device: InputDevice,
+      handler: Handler,
+      xAxis: Int,
+      yAxis: Int,
+      windowWidth: Float,
+      windowHeight: Float,
+      onUpdate: (CursorState) -> Unit,
     ): CursorState {
       fun makeButtonAxis(axis: Int, keycode: Int, opposingKeycode: Int? = null) =
-          ButtonAxis(RangedAxis(axis, device.getMotionRange(axis)), keycode, opposingKeycode)
+        ButtonAxis(RangedAxis(axis, device.getMotionRange(axis)), keycode, opposingKeycode)
 
       val buttonAxes =
-          listOf(
-              makeButtonAxis(MotionEvent.AXIS_LTRIGGER, KeyEvent.KEYCODE_BUTTON_L2),
-              makeButtonAxis(MotionEvent.AXIS_RTRIGGER, KeyEvent.KEYCODE_BUTTON_R2),
-              makeButtonAxis(
-                  MotionEvent.AXIS_HAT_X, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT),
-              makeButtonAxis(
-                  MotionEvent.AXIS_HAT_Y, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP),
-          )
+        listOf(
+          makeButtonAxis(MotionEvent.AXIS_LTRIGGER, KeyEvent.KEYCODE_BUTTON_L2),
+          makeButtonAxis(MotionEvent.AXIS_RTRIGGER, KeyEvent.KEYCODE_BUTTON_R2),
+          makeButtonAxis(
+            MotionEvent.AXIS_HAT_X,
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_LEFT
+          ),
+          makeButtonAxis(
+            MotionEvent.AXIS_HAT_Y,
+            KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_UP
+          ),
+        )
 
       return CursorState(
-          device.id,
-          handler,
-          xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
-          yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
-          buttonAxes,
-          windowWidth,
-          windowHeight,
-          onUpdate,
+        device.id,
+        handler,
+        xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
+        yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
+        buttonAxes,
+        windowWidth,
+        windowHeight,
+        onUpdate,
       )
     }
 
@@ -268,9 +274,9 @@ private data class RangedAxis(val axis: Int, private val range: MotionRange) {
  * [KeyEvent] keycodes.
  */
 private data class ButtonAxis(
-    private val axis: RangedAxis,
-    val positiveKeycode: Int,
-    val negativeKeycode: Int?,
+  private val axis: RangedAxis,
+  val positiveKeycode: Int,
+  val negativeKeycode: Int?,
 ) {
   var isPositivePressed = false
     private set

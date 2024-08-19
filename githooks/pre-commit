@@ -1,0 +1,12 @@
+#!/bin/sh
+
+readonly added_and_modified_filenames="$(git diff --cached --name-only --diff-filter=d)"
+readonly changed_kt_filenames="$(echo "${added_and_modified_filenames}" | grep -E '.*\.(kt)$')"
+
+function run_ktfmt() {
+  files_to_format="$(echo "${changed_kt_filenames}" | grep -v '3rdparty')"
+  ./gradlew ktfmtPreCommit
+  echo "${files_to_format}" | xargs git add
+}
+
+run_ktfmt

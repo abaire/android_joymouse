@@ -16,20 +16,20 @@ import androidx.compose.ui.res.stringResource
 
 @Composable
 fun MainScreen(
-    overlayEnabled: Boolean,
-    modifier: Modifier = Modifier,
-    onLaunchAccessibilitySettings: () -> Unit,
-    onEnableOverlay: () -> Unit
+  overlayEnabled: Boolean,
+  modifier: Modifier = Modifier,
+  onLaunchAccessibilitySettings: () -> Unit,
+  onEnableOverlay: () -> Unit
 ) {
   Column(
-      modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
-      verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
+    modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
+    verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
   ) {
     Spacer(modifier = Modifier.height(LayoutTokens.COLUMN_ROW_SPACING))
 
     Text(
-        text = stringResource(id = R.string.enable_service_instructions),
-        style = MaterialTheme.typography.titleMedium,
+      text = stringResource(id = R.string.enable_service_instructions),
+      style = MaterialTheme.typography.titleMedium,
     )
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
