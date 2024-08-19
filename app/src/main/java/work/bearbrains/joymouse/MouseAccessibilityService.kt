@@ -126,6 +126,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     injectMoveGesture(state, isButtonUpdate = true)
   }
 
+  private fun onAction(state: CursorState, action: CursorState.Action) {
+    performGlobalAction(action.toGlobalAction())
+  }
+
   private fun injectMoveGesture(state: CursorState, isButtonUpdate: Boolean = false) {
     if (!state.isPrimaryButtonPressed && !isButtonUpdate) {
       return
@@ -221,8 +225,9 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
         Y_AXIS,
         windowWidth,
         windowHeight,
-        ::updateCursorPosition,
-        ::onUpdatePrimaryButton,
+        onUpdatePosition = ::updateCursorPosition,
+        onUpdatePrimaryButton = ::onUpdatePrimaryButton,
+        onAction = ::onAction,
       ) { state ->
         if (!state.isEnabled) {
           cursorView?.hideCursor()
@@ -231,6 +236,19 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
           updateCursorPosition(state)
         }
       }
+  }
+
+  private fun CursorState.Action.toGlobalAction(): Int {
+    return when (this) {
+      CursorState.Action.BACK -> GLOBAL_ACTION_BACK
+      CursorState.Action.HOME -> GLOBAL_ACTION_HOME
+      CursorState.Action.RECENTS -> GLOBAL_ACTION_RECENTS
+      CursorState.Action.DPAD_UP -> GLOBAL_ACTION_DPAD_UP
+      CursorState.Action.DPAD_DOWN -> GLOBAL_ACTION_DPAD_DOWN
+      CursorState.Action.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
+      CursorState.Action.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
+      CursorState.Action.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
+    }
   }
 
   private companion object {
