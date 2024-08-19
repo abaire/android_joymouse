@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">JoyMouse</string>
+    <string name="accessibility_service_summary">Allows a joystick to control a virtual mouse cursor</string>
+    <string name="accessibility_service_description">Allows the use of a joystick or gamepad to control a mouse cursor in order to interact with this device.</string>
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
 
