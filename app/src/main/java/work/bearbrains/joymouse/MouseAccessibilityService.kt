@@ -97,14 +97,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
     val isPress = event.action == KeyEvent.ACTION_DOWN
     return state.handleButtonEvent(isPress, event.keyCode)
-
-    // private void tap(PointF point) {
-    //          StrokeDescription tap =  new StrokeDescription(path(point), 0,
-    //          ViewConfiguration.getTapTimeout());
-    //          GestureDescription.Builder builder = new GestureDescription.Builder();
-    //          builder.addStroke(tap);
-    //          dispatchGesture(builder.build(), null, null);
-    //      }
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
@@ -127,19 +119,29 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       show()
     }
 
-    // TODO: Only inject a gesture if the trigger is currently held down
-    //    injectMoveGesture(state)
+    injectMoveGesture(state)
   }
 
-  private fun injectMoveGesture(state: CursorState) {
+  private fun onUpdatePrimaryButton(state: CursorState) {
+    injectMoveGesture(state, isButtonUpdate = true)
+  }
+
+  private fun injectMoveGesture(state: CursorState, isButtonUpdate: Boolean = false) {
+    if (!state.isPrimaryButtonPressed && !isButtonUpdate) {
+      return
+    }
+
     val path = state.createGesturePath()
 
     // TODO: Have the duration utilize the time since the last motion event?
     val durationMilliseconds = 10L
-
-    // TODO: Only mark the gesture as willContinue if the trigger is still held
-    val willContinue = true
-    val stroke = GestureDescription.StrokeDescription(path, 0, durationMilliseconds, willContinue)
+    val stroke =
+      GestureDescription.StrokeDescription(
+        path,
+        0,
+        durationMilliseconds,
+        state.isPrimaryButtonPressed,
+      )
 
     val gestureBuilder = GestureDescription.Builder()
     gestureBuilder.addStroke(stroke)
@@ -219,7 +221,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
         Y_AXIS,
         windowWidth,
         windowHeight,
-        ::updateCursorPosition
+        ::updateCursorPosition,
+        ::onUpdatePrimaryButton,
       ) { state ->
         if (!state.isEnabled) {
           cursorView?.hideCursor()

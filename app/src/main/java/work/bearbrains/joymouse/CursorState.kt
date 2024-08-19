@@ -18,9 +18,11 @@ private constructor(
   private val yAxis: RangedAxis,
   private val buttonAxes: List<ButtonAxis>,
   private val toggleChord: ButtonChord,
+  private val primaryButtonChord: ButtonChord,
   private val windowWidth: Float,
   private val windowHeight: Float,
   private val onUpdatePosition: (CursorState) -> Unit,
+  private val onUpdatePrimaryButton: (CursorState) -> Unit,
   private val onEnableChanged: (CursorState) -> Unit,
 ) {
 
@@ -71,6 +73,10 @@ private constructor(
     private set(value) {
       if (!value) {
         eventRepeater.cancel()
+        if (primaryButtonChord.isPressed) {
+          primaryButtonChord.reset()
+          onUpdatePrimaryButton(this)
+        }
       }
       field = value
       onEnableChanged(this)
@@ -93,10 +99,14 @@ private constructor(
     private set
 
   /** The default velocity of the pointer. */
-  val defaultVelocityPixelsPerNanosecond =
+  private val defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(windowWidth, windowHeight)
 
   private var lastEventTimeMilliseconds: Long? = null
+
+  /** Indicates that the primary virtual mouse button is currently pressed. */
+  val isPrimaryButtonPressed: Boolean
+    get() = primaryButtonChord.isPressed
 
   /** Indicates whether any measurable deflection has been applied. */
   val hasDeflection: Boolean
@@ -210,6 +220,10 @@ private constructor(
       return true
     }
 
+    if (primaryButtonChord.update(buttonStates)) {
+      onUpdatePrimaryButton(this)
+    }
+
     return isEnabled
   }
 
@@ -231,6 +245,7 @@ private constructor(
       windowWidth: Float,
       windowHeight: Float,
       onUpdatePosition: (CursorState) -> Unit,
+      onUpdatePrimaryButton: (CursorState) -> Unit,
       onEnableChanged: (CursorState) -> Unit,
     ): CursorState {
       fun makeButtonAxis(axis: Int, keycode: Int, opposingKeycode: Int? = null) =
@@ -262,6 +277,8 @@ private constructor(
           )
         )
 
+      val primaryButtonChord = ButtonChord(setOf(KeyEvent.KEYCODE_BUTTON_R2))
+
       return CursorState(
         device.id,
         handler,
@@ -269,9 +286,11 @@ private constructor(
         yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
         buttonAxes,
         toggleChord,
+        primaryButtonChord,
         windowWidth,
         windowHeight,
         onUpdatePosition,
+        onUpdatePrimaryButton,
         onEnableChanged,
       )
     }
@@ -384,5 +403,10 @@ private data class ButtonChord(val keycodes: Set<Int>) {
 
     isPressed = currentlyPressed
     return true
+  }
+
+  /** Forcibly resets the virtual button state to unpressed. */
+  fun reset() {
+    isPressed = false
   }
 }
