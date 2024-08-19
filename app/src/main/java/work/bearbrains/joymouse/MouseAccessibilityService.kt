@@ -119,7 +119,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     // 2024-08-17 21:32:38.141 22961-22961 System.out              work.bearbrains.joymouse             I  !!! onMotionEvent MotionEvent { action=ACTION_MOVE, actionButton=0, id[0]=0, x[0]=1.0, y[0]=-0.060959816, toolType[0]=TOOL_TYPE_UNKNOWN, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=8122528, downTime=0, deviceId=7, source=0x1000010, displayId=-1, eventId=1044213735 }
 
 
-//    injectMouseMove(0.25f, 0.0f)
+
+    injectMouseMove(150f, 0.0f)
 
     super.onMotionEvent(event)
   }
@@ -127,8 +128,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   private fun injectMouseMove(relativeX: Float, relativeY: Float) {
     println("!!! injectMouseMove: $relativeX $relativeY")
     val path = Path()
-    path.moveTo(0f, 0f) // Start at current position
-    path.lineTo(relativeX, relativeY) // Move relative to current position
+    val startX = 700f
+    val startY = 600f
+    path.moveTo(startX, startY)
+    path.lineTo(startX + relativeX, startY + relativeY)
 
     val stroke = GestureDescription.StrokeDescription(path, 0, 50) // 50ms duration
 
