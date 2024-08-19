@@ -17,9 +17,11 @@ private constructor(
   private val xAxis: RangedAxis,
   private val yAxis: RangedAxis,
   private val buttonAxes: List<ButtonAxis>,
+  private val toggleChord: ButtonChord,
   private val windowWidth: Float,
   private val windowHeight: Float,
-  private val onUpdate: (CursorState) -> Unit,
+  private val onUpdatePosition: (CursorState) -> Unit,
+  private val onEnableChanged: (CursorState) -> Unit,
 ) {
 
   private val eventRepeater =
@@ -64,6 +66,16 @@ private constructor(
       KeyEvent.KEYCODE_DPAD_DOWN to false,
     )
 
+  /** Whether or not this virtual cursor is enabled or has been toggled off via a button chord. */
+  var isEnabled: Boolean = true
+    private set(value) {
+      if (!value) {
+        eventRepeater.cancel()
+      }
+      field = value
+      onEnableChanged(this)
+    }
+
   /** The current X coordinate of the pointer (in pixels) */
   var pointerX = windowWidth * 0.5f
     private set
@@ -104,6 +116,10 @@ private constructor(
    */
   fun update(event: MotionEvent) {
     processAxesAsButtons(event)
+
+    if (!isEnabled) {
+      return
+    }
 
     val xMoved = xAxis.update(event)
     val yMoved = yAxis.update(event)
@@ -167,10 +183,10 @@ private constructor(
     pointerX = (pointerX + dX).coerceIn(0f, windowWidth)
     pointerY = (pointerY + dY).coerceIn(0f, windowHeight)
 
-    onUpdate(this)
+    onUpdatePosition(this)
   }
 
-  /** Processes a press/release event. */
+  /** Processes a press/release event. Returns true if the event was consumed. */
   fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
     buttonStates[keyCode] = isDown
 
@@ -179,7 +195,7 @@ private constructor(
 
   /**
    * Processes the current state of all buttons. Returns "true" if the event that triggered this
-   * call should be passed on to downstream handlers.
+   * call should be consumed and not passed to further handlers.
    */
   private fun onButtonStatesChanged(): Boolean {
     Log.d(TAG, "Axis as button updated press state")
@@ -189,8 +205,12 @@ private constructor(
       }
     }
 
-    // TODO: Consume the event if needed.
-    return true
+    if (toggleChord.update(buttonStates) && toggleChord.isPressed) {
+      isEnabled = !isEnabled
+      return true
+    }
+
+    return isEnabled
   }
 
   companion object {
@@ -210,7 +230,8 @@ private constructor(
       yAxis: Int,
       windowWidth: Float,
       windowHeight: Float,
-      onUpdate: (CursorState) -> Unit,
+      onUpdatePosition: (CursorState) -> Unit,
+      onEnableChanged: (CursorState) -> Unit,
     ): CursorState {
       fun makeButtonAxis(axis: Int, keycode: Int, opposingKeycode: Int? = null) =
         ButtonAxis(RangedAxis(axis, device.getMotionRange(axis)), keycode, opposingKeycode)
@@ -231,15 +252,27 @@ private constructor(
           ),
         )
 
+      val toggleChord =
+        ButtonChord(
+          setOf(
+            KeyEvent.KEYCODE_BUTTON_L1,
+            KeyEvent.KEYCODE_BUTTON_L2,
+            KeyEvent.KEYCODE_BUTTON_R1,
+            KeyEvent.KEYCODE_BUTTON_R2,
+          )
+        )
+
       return CursorState(
         device.id,
         handler,
         xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
         yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
         buttonAxes,
+        toggleChord,
         windowWidth,
         windowHeight,
-        onUpdate,
+        onUpdatePosition,
+        onEnableChanged,
       )
     }
 
@@ -326,5 +359,30 @@ private data class ButtonAxis(
 
   private companion object {
     private const val TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD = 0.8f
+  }
+}
+
+/**
+ * Defines a set of buttons that will be used to control a virtual button state (if all physical
+ * buttons are pressed, the virtual button is considered pressed).
+ */
+private data class ButtonChord(val keycodes: Set<Int>) {
+  var isPressed = false
+    private set
+
+  /**
+   * Updates the state of this [ButtonChord] based on the given physical button states.
+   *
+   * Returns true if the state has changed.
+   */
+  fun update(buttonStates: Map<Int, Boolean>): Boolean {
+    val currentlyPressed = keycodes.all { buttonStates.getOrDefault(it, false) }
+
+    if (currentlyPressed == isPressed) {
+      return false
+    }
+
+    isPressed = currentlyPressed
+    return true
   }
 }

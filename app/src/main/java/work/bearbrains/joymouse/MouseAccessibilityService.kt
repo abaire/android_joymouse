@@ -73,6 +73,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
     inputManager.registerInputDeviceListener(this, null)
     detectJoystickDevices(inputManager)
+
+    if (joystickDeviceIdsToState.isNotEmpty()) {
+      updateCursorPosition(joystickDeviceIdsToState.values.first())
+    }
   }
 
   override fun onUnbind(intent: Intent?): Boolean {
@@ -116,7 +120,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     super.onMotionEvent(event)
   }
 
-  private fun updateCursor(state: CursorState) {
+  private fun updateCursorPosition(state: CursorState) {
     cursorView?.apply {
       updatePosition(state.pointerX, state.pointerY)
       cursorHider.restart()
@@ -208,7 +212,22 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private fun addJoystickDevice(device: InputDevice) {
     joystickDeviceIdsToState[device.id] =
-      CursorState.create(device, handler, X_AXIS, Y_AXIS, windowWidth, windowHeight, ::updateCursor)
+      CursorState.create(
+        device,
+        handler,
+        X_AXIS,
+        Y_AXIS,
+        windowWidth,
+        windowHeight,
+        ::updateCursorPosition
+      ) { state ->
+        if (!state.isEnabled) {
+          cursorView?.hideCursor()
+          cursorHider.cancel()
+        } else {
+          updateCursorPosition(state)
+        }
+      }
   }
 
   private companion object {
