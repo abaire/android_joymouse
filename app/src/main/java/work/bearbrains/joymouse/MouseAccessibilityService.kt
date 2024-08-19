@@ -170,7 +170,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       )
 
     if (!wasDispatched) {
-      println("!!! Error: dispatchGesture failed!")
+      Log.e(TAG, "dispatchGesture failed!")
     }
   }
 
@@ -192,23 +192,13 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   override fun onInputDeviceChanged(deviceId: Int) {
-    println("!!! onInputDeviceChanged ${deviceId}")
+    Log.d(TAG, "Ignoring onInputDeviceChanged for device ID ${deviceId}")
   }
 
   private fun measureDisplays() {
     val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
     windowWidth = windowManager.maximumWindowMetrics.bounds.width().toFloat()
     windowHeight = windowManager.maximumWindowMetrics.bounds.height().toFloat()
-
-    //    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-    //
-    //    for (display in displayManager.displays) {
-    //      // Do something with each display
-    //      val displayId = display.displayId
-    //      val displayName = display.name
-    //      display.getRealSize()
-    //      // ...
-    //    }
   }
 
   private fun destroyCursors() {
