@@ -1,5 +1,6 @@
 package work.bearbrains.joymouse
 
+import android.os.Handler
 import android.view.InputDevice
 import android.view.InputDevice.MotionRange
 import android.view.MotionEvent
@@ -9,13 +10,36 @@ import kotlin.math.absoluteValue
 data class CursorState(
     /** The ID of the physical device that this repeater is associated with. */
     val deviceId: Int,
+    val handler: Handler,
     private val xAxis: Int,
     private val yAxis: Int,
     private val xRange: MotionRange,
     private val yRange: MotionRange,
     private val windowWidth: Float,
     private val windowHeight: Float,
+    private val onUpdate: (CursorState) -> Unit,
 ) {
+
+  private val eventRepeater =
+      object : Runnable {
+        private val REPEAT_DELAY_MILLISECONDS = 10L
+
+        override fun run() {
+          applyDeflection()
+          restart()
+        }
+
+        /** Queues this repeater for future processing. */
+        fun restart() {
+          handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
+        }
+
+        /** Cancels any pending runs for this repeater. */
+        fun cancel() {
+          handler.removeCallbacks(this)
+        }
+      }
+
   private var xDeflection: Float = 0f
   private var yDeflection: Float = 0f
 
@@ -45,6 +69,11 @@ data class CursorState(
   val hasDeflection: Boolean
     get() = xDeflection != 0f || yDeflection != 0f
 
+  /** Stops repeating events for this state. */
+  fun cancelRepeater() {
+    eventRepeater.cancel()
+  }
+
   /**
    * Updates the stored xDeflection and yDeflection with the contents of the given [MotionEvent].
    */
@@ -56,6 +85,12 @@ data class CursorState(
     yDeflection = if (rawY.absoluteValue < yRange.flat) 0f else rawY
 
     applyDeflection()
+
+    if (hasDeflection) {
+      eventRepeater.restart()
+    } else {
+      eventRepeater.cancel()
+    }
   }
 
   /** Applies the last calculated deflection values. */
@@ -77,6 +112,8 @@ data class CursorState(
 
     pointerX = (pointerX + dX).coerceIn(0f, windowWidth)
     pointerY = (pointerY + dY).coerceIn(0f, windowHeight)
+
+    onUpdate(this)
   }
 
   companion object {
@@ -88,19 +125,23 @@ data class CursorState(
      */
     fun create(
         device: InputDevice,
+        handler: Handler,
         xAxis: Int,
         yAxis: Int,
         windowWidth: Float,
         windowHeight: Float,
+        onUpdate: (CursorState) -> Unit,
     ): CursorState {
       return CursorState(
           device.id,
+          handler,
           xAxis,
           yAxis,
           device.getMotionRange(xAxis),
           device.getMotionRange(yAxis),
           windowWidth,
           windowHeight,
+          onUpdate,
       )
     }
 

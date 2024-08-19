@@ -26,35 +26,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private val tapTimeout = ViewConfiguration.getTapTimeout()
 
-  private val eventRepeater =
-      object : Runnable {
-        private val REPEAT_DELAY_MILLISECONDS = 10L
-
-        /** The [CursorState] that should be reapplied by this repeater. */
-        var state: CursorState? = null
-
-        /** The ID of the physical device that this repeater is associated with. */
-        var deviceId: Int? = null
-
-        override fun run() {
-          state?.let {
-            it.applyDeflection()
-            updateCursor(it)
-            restart()
-          }
-        }
-
-        /** Queues this repeater for future processing. */
-        fun restart() {
-          handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
-        }
-
-        /** Cancels any pending runs for this repeater. */
-        fun cancel() {
-          handler.removeCallbacks(this)
-        }
-      }
-
   override fun onServiceConnected() {
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
@@ -106,16 +77,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     }
 
     state.update(event)
-    updateCursor(state)
-
-    if (state.hasDeflection) {
-      eventRepeater.state = state
-      // TODO: Properly support multiple devices.
-      eventRepeater.deviceId = event.deviceId
-      eventRepeater.restart()
-    } else {
-      eventRepeater.cancel()
-    }
 
     super.onMotionEvent(event)
   }
@@ -162,16 +123,12 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       if (!device.isJoystick) {
         return@let
       }
-      joystickDeviceIdsToState[deviceId] =
-          CursorState.create(device, X_AXIS, Y_AXIS, windowWidth, windowHeight)
+      addJoystickDevice(device)
     }
   }
 
   override fun onInputDeviceRemoved(deviceId: Int) {
-    if (eventRepeater.deviceId == deviceId) {
-      eventRepeater.cancel()
-    }
-
+    joystickDeviceIdsToState.get(deviceId)?.cancelRepeater()
     joystickDeviceIdsToState.remove(deviceId)
   }
 
@@ -203,10 +160,15 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
         if (!device.isJoystick) {
           return@let
         }
-        joystickDeviceIdsToState[deviceId] =
-            CursorState.create(device, X_AXIS, Y_AXIS, windowWidth, windowHeight)
+        addJoystickDevice(device)
       }
     }
+  }
+
+  private fun addJoystickDevice(device: InputDevice) {
+    joystickDeviceIdsToState[device.id] =
+        CursorState.create(
+            device, handler, X_AXIS, Y_AXIS, windowWidth, windowHeight, ::updateCursor)
   }
 
   private companion object {
