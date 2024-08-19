@@ -4,8 +4,11 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Path
+import android.graphics.PorterDuff
 import android.hardware.input.InputManager
 import android.os.Handler
 import android.os.Looper
@@ -33,6 +36,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   var cursorView: CursorView? = null
   val cursorDisplayTimeoutMilliseconds = 1500L
 
+  private var activeGestureBuilder: GestureBuilder? = null
+
   private val cursorHider =
     object : Runnable {
       override fun run() {
@@ -53,17 +58,29 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     }
 
   override fun onServiceConnected() {
-    cursorView =
-      CursorView(
-        ImageView(this).apply {
-          val drawable =
-            ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
-          setImageDrawable(drawable)
+    val cursorIcon =
+      ImageView(this).apply {
+        val drawable =
+          ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
+        setImageDrawable(drawable)
 
-          fitsSystemWindows = false
-        },
-        getSystemService(Context.WINDOW_SERVICE) as WindowManager
-      )
+        fitsSystemWindows = false
+
+        imageTintMode = PorterDuff.Mode.MULTIPLY
+        imageTintList =
+          ColorStateList(
+            arrayOf(
+              intArrayOf(android.R.attr.state_pressed),
+              intArrayOf(),
+            ),
+            intArrayOf(
+              Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
+              Color.WHITE,
+            ),
+          )
+      }
+
+    cursorView = CursorView(cursorIcon, getSystemService(Context.WINDOW_SERVICE) as WindowManager)
 
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
@@ -103,8 +120,11 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       return super.onKeyEvent(event)
     }
 
-    val isPress = event.action == KeyEvent.ACTION_DOWN
-    return state.handleButtonEvent(isPress, event.keyCode)
+    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BUTTON_Y) {
+      tempSendRightSwipe()
+    }
+
+    return state.handleButtonEvent(event.action == KeyEvent.ACTION_DOWN, event.keyCode)
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
@@ -121,57 +141,110 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   private fun updateCursorPosition(state: CursorState) {
+    cursorHider.cancel()
+
     cursorView?.apply {
       updatePosition(state.pointerX, state.pointerY)
-      cursorHider.restart()
+      if (!state.isPrimaryButtonPressed) {
+        cursorHider.restart()
+      }
       show()
     }
 
-    injectMoveGesture(state)
+    activeGestureBuilder?.cursorMove(state)
   }
 
   private fun onUpdatePrimaryButton(state: CursorState) {
-    injectMoveGesture(state, isButtonUpdate = true)
+    updateCursorPosition(state)
+
+    if (state.isPrimaryButtonPressed) {
+      activeGestureBuilder = GestureBuilder(state)
+      cursorView?.onCursorPressed(true)
+    } else {
+      cursorView?.onCursorPressed(false)
+      activeGestureBuilder?.endGesture(state)
+      dispatchPendingGesture()
+      cursorHider.restart()
+    }
+  }
+
+  private fun dispatchGesture(
+    gesture: GestureDescription,
+    onCompleted: (() -> Unit)? = null,
+    numRetries: Int = 0,
+  ): Boolean {
+    return dispatchGesture(
+      gesture,
+      object : GestureResultCallback() {
+        override fun onCompleted(gestureDescription: GestureDescription) {
+          onCompleted?.invoke()
+        }
+
+        override fun onCancelled(gestureDescription: GestureDescription) {
+          // Gestures are cancelled by arbitrary MotionEvents. This means that an axis button
+          // could pass the activation threshold, triggering this method, then emit further events
+          // and cancel the gesture.
+          if (numRetries > MAX_GESTURE_DISPATCH_RETRIES) {
+            Log.d(
+              TAG,
+              "!!!!\n Gesture cancelled after ${numRetries} retries: ${gestureDescription}\n\n"
+            )
+            return
+          }
+
+          handler.post { dispatchGesture(gesture, onCompleted, numRetries + 1) }
+        }
+      },
+      handler,
+    )
+  }
+
+  private fun tempSendRightSwipe() {
+
+    fun sendAndThen(s: GestureDescription.StrokeDescription, onCompleted: () -> Unit) {
+      val gesture = GestureDescription.Builder().apply { addStroke(s) }.build()
+      if (!dispatchGesture(gesture, onCompleted)) {
+        Log.e(TAG, "dispatchGesture failed!")
+      }
+    }
+
+    fun send(s: GestureDescription.StrokeDescription) {
+      sendAndThen(s, {})
+    }
+
+    var x = 10f
+    var y = 1700f
+
+    var stroke =
+      GestureDescription.StrokeDescription(
+        Path().apply {
+          moveTo(x, y)
+          x += 400
+          y += 10
+          lineTo(x, y)
+        },
+        1L,
+        30L,
+        false,
+      )
+    send(stroke)
+  }
+
+  private fun dispatchPendingGesture() {
+    activeGestureBuilder?.let {
+      val gesture = it.build()
+
+      val wasDispatched = dispatchGesture(gesture)
+      if (!wasDispatched) {
+        Log.e(TAG, "dispatchGesture failed for ${gesture}!")
+      }
+    }
+
+    activeGestureBuilder = null
   }
 
   private fun onAction(state: CursorState, action: CursorState.Action) {
     performGlobalAction(action.toGlobalAction())
-  }
-
-  private fun injectMoveGesture(state: CursorState, isButtonUpdate: Boolean = false) {
-    if (!state.isPrimaryButtonPressed && !isButtonUpdate) {
-      return
-    }
-
-    val path = state.createGesturePath()
-
-    // TODO: Have the duration utilize the time since the last motion event?
-    val durationMilliseconds = 10L
-    val stroke =
-      GestureDescription.StrokeDescription(
-        path,
-        0,
-        durationMilliseconds,
-        state.isPrimaryButtonPressed,
-      )
-
-    val gestureBuilder = GestureDescription.Builder()
-    gestureBuilder.addStroke(stroke)
-
-    val wasDispatched =
-      dispatchGesture(
-        gestureBuilder.build(),
-        object : GestureResultCallback() {
-          override fun onCompleted(gestureDescription: GestureDescription) {}
-
-          override fun onCancelled(gestureDescription: GestureDescription) {}
-        },
-        handler
-      )
-
-    if (!wasDispatched) {
-      Log.e(TAG, "dispatchGesture failed!")
-    }
   }
 
   override fun onInterrupt() {}
@@ -259,13 +332,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
     val X_AXIS = MotionEvent.AXIS_Z
     val Y_AXIS = MotionEvent.AXIS_RZ
-  }
-}
 
-private fun CursorState.createGesturePath(): Path {
-  return Path().apply {
-    moveTo(lastPointerX, lastPointerY)
-    lineTo(pointerX, pointerY)
+    val MAX_GESTURE_DISPATCH_RETRIES = 15
   }
 }
 

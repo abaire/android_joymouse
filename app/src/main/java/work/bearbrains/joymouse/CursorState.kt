@@ -1,7 +1,6 @@
 package work.bearbrains.joymouse
 
 import android.os.Handler
-import android.util.Log
 import android.view.InputDevice
 import android.view.InputDevice.MotionRange
 import android.view.KeyEvent
@@ -110,14 +109,6 @@ private constructor(
   var pointerY = windowHeight * 0.5f
     private set
 
-  /** The X coordinate (in pixels) of the pointer prior to the most recent move. */
-  var lastPointerX = pointerX
-    private set
-
-  /** The Y coordinate (in pixels) of the pointer prior to the most recent move. */
-  var lastPointerY = pointerY
-    private set
-
   /** The default velocity of the pointer. */
   private val defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(windowWidth, windowHeight)
@@ -174,7 +165,7 @@ private constructor(
         if (wasModified) {
           buttonStates[button.positiveKeycode] = button.isPositivePressed
           button.negativeKeycode?.let { negativeKeycode ->
-            buttonStates[negativeKeycode] = button.isNegativeePressed
+            buttonStates[negativeKeycode] = button.isNegativePressed
           }
           buttonStatesChanged = true
         }
@@ -190,9 +181,6 @@ private constructor(
   fun applyDeflection() {
     val timeDelta = lastEventTimeMilliseconds?.let { (System.nanoTime() - it) } ?: 0L
     lastEventTimeMilliseconds = System.nanoTime()
-
-    lastPointerX = pointerX
-    lastPointerY = pointerY
 
     // If timeDelta is very large there was probably an intentional gap in user input and this is
     // the start of a new movement.
@@ -228,13 +216,6 @@ private constructor(
    * call should be consumed and not passed to further handlers.
    */
   private fun onButtonStatesChanged(): Boolean {
-    Log.d(TAG, "Axis as button updated press state")
-    buttonStates.forEach { (k, v) ->
-      if (v) {
-        Log.d(TAG, "\t${KeyEvent.keyCodeToString(k)}")
-      }
-    }
-
     if (toggleButton.update(buttonStates) && toggleButton.isPressed) {
       isEnabled = !isEnabled
       return true
@@ -300,13 +281,31 @@ private constructor(
       onAction: (CursorState, Action) -> Unit,
       onEnableChanged: (CursorState) -> Unit,
     ): CursorState {
-      fun makeButtonAxis(axis: Int, keycode: Int, opposingKeycode: Int? = null) =
-        ButtonAxis(RangedAxis(axis, device.getMotionRange(axis)), keycode, opposingKeycode)
+      fun makeButtonAxis(
+        axis: Int,
+        keycode: Int,
+        opposingKeycode: Int? = null,
+        latchUntilZero: Boolean = false,
+      ) =
+        ButtonAxis(
+          RangedAxis(axis, device.getMotionRange(axis)),
+          keycode,
+          opposingKeycode,
+          latchUntilZero,
+        )
 
       val buttonAxes =
         listOf(
-          makeButtonAxis(MotionEvent.AXIS_LTRIGGER, KeyEvent.KEYCODE_BUTTON_L2),
-          makeButtonAxis(MotionEvent.AXIS_RTRIGGER, KeyEvent.KEYCODE_BUTTON_R2),
+          makeButtonAxis(
+            MotionEvent.AXIS_LTRIGGER,
+            KeyEvent.KEYCODE_BUTTON_L2,
+            latchUntilZero = true
+          ),
+          makeButtonAxis(
+            MotionEvent.AXIS_RTRIGGER,
+            KeyEvent.KEYCODE_BUTTON_R2,
+            latchUntilZero = true
+          ),
           makeButtonAxis(
             MotionEvent.AXIS_HAT_X,
             KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -381,13 +380,17 @@ private data class RangedAxis(val axis: Int, private val range: MotionRange) {
   var deflection = 0f
     private set
 
+  // TODO: REMOVEME
+  var rawDeflection = 0f
+    private set
+
   /**
    * Updates the [deflection] value for this axis. Returns true if the value was substantively
    * modified.
    */
   fun update(event: MotionEvent): Boolean {
-    val raw = event.getAxisValue(axis)
-    val newValue = if (raw.absoluteValue < range.flat) 0f else raw
+    rawDeflection = event.getAxisValue(axis)
+    val newValue = if (rawDeflection.absoluteValue < range.flat) 0f else rawDeflection
 
     if ((newValue - deflection).absoluteValue <= range.fuzz) {
       return false
@@ -407,11 +410,17 @@ private data class ButtonAxis(
   private val axis: RangedAxis,
   val positiveKeycode: Int,
   val negativeKeycode: Int?,
+
+  /**
+   * [MotionEvent]s appear to cancel [GestureDescription]s, so virtual buttons may be set to refrain
+   * from emitting an "up" event until they return to zero.
+   */
+  private val latchUntilZero: Boolean = false,
 ) {
   var isPositivePressed = false
     private set
 
-  var isNegativeePressed = false
+  var isNegativePressed = false
     private set
 
   /**
@@ -424,24 +433,51 @@ private data class ButtonAxis(
       return false
     }
 
-    val newPositivePressState = axis.deflection >= TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
-
     var ret = false
-    if (newPositivePressState != isPositivePressed) {
-      isPositivePressed = newPositivePressState
-      ret = true
+
+    val pastPositiveThreshold = axis.deflection >= TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
+    if (!isPositivePressed) {
+      if (pastPositiveThreshold) {
+        isPositivePressed = true
+        ret = true
+      }
+    } else {
+      if (latchUntilZero) {
+        if (axis.deflection <= 0f) {
+          isPositivePressed = false
+          ret = true
+        }
+      } else if (!pastPositiveThreshold) {
+        isPositivePressed = false
+        ret = true
+      }
     }
 
-    val newNegativePressState = axis.deflection <= -TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
-    if (negativeKeycode != null && newNegativePressState != isNegativeePressed) {
-      isNegativeePressed = newNegativePressState
-      ret = true
+    if (negativeKeycode != null) {
+      val pastNegativeThreshold = axis.deflection <= -TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
+      if (!isNegativePressed) {
+        if (pastNegativeThreshold) {
+          isNegativePressed = true
+          ret = true
+        }
+      } else {
+        if (latchUntilZero) {
+          if (axis.deflection >= 0f) {
+            isNegativePressed = false
+            ret = true
+          }
+        } else if (!pastNegativeThreshold) {
+          isNegativePressed = false
+          ret = true
+        }
+      }
     }
 
     return ret
   }
 
   private companion object {
+    private const val TAG = "ButtonAxis"
     private const val TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD = 0.8f
   }
 }

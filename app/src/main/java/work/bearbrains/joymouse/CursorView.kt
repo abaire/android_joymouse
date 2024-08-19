@@ -61,4 +61,12 @@ class CursorView(private val view: View, private val windowManager: WindowManage
     isShown = false
     view.let { windowManager.removeView(it) }
   }
+
+  /**
+   * Used to request a visual indication that the primary button associated with this cursor is
+   * down.
+   */
+  fun onCursorPressed(isPressed: Boolean) {
+    view.isPressed = isPressed
+  }
 }
