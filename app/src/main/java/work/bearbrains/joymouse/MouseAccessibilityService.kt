@@ -73,8 +73,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       return super.onKeyEvent(event)
     }
 
-    // TODO: Look for the enable/disable chord.
-    println("!!! onKeyEvent $event")
+    val isPress = event.action == KeyEvent.ACTION_DOWN
+    return state.handleButtonEvent(isPress, event.keyCode)
 
     // private void tap(PointF point) {
     //          StrokeDescription tap =  new StrokeDescription(path(point), 0,
@@ -83,8 +83,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     //          builder.addStroke(tap);
     //          dispatchGesture(builder.build(), null, null);
     //      }
-
-    return super.onKeyEvent(event)
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {}

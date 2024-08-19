@@ -1,20 +1,22 @@
 package work.bearbrains.joymouse
 
 import android.os.Handler
+import android.util.Log
 import android.view.InputDevice
 import android.view.InputDevice.MotionRange
+import android.view.KeyEvent
 import android.view.MotionEvent
 import kotlin.math.absoluteValue
 
 /** Encapsulates state for a virtual cursor that is controlled by axes from [MotionEvent]s. */
-data class CursorState(
+class CursorState
+private constructor(
     /** The ID of the physical device that this repeater is associated with. */
     val deviceId: Int,
-    val handler: Handler,
-    private val xAxis: Int,
-    private val yAxis: Int,
-    private val xRange: MotionRange,
-    private val yRange: MotionRange,
+    private val handler: Handler,
+    private val xAxis: RangedAxis,
+    private val yAxis: RangedAxis,
+    private val buttonAxes: List<ButtonAxis>,
     private val windowWidth: Float,
     private val windowHeight: Float,
     private val onUpdate: (CursorState) -> Unit,
@@ -40,8 +42,27 @@ data class CursorState(
         }
       }
 
-  private var xDeflection: Float = 0f
-  private var yDeflection: Float = 0f
+  private val buttonStates =
+      mutableMapOf(
+          KeyEvent.KEYCODE_BUTTON_A to false,
+          KeyEvent.KEYCODE_BUTTON_B to false,
+          KeyEvent.KEYCODE_BUTTON_X to false,
+          KeyEvent.KEYCODE_BUTTON_Y to false,
+          KeyEvent.KEYCODE_BUTTON_L1 to false,
+          KeyEvent.KEYCODE_BUTTON_L2 to false,
+          KeyEvent.KEYCODE_BUTTON_R1 to false,
+          KeyEvent.KEYCODE_BUTTON_R2 to false,
+          KeyEvent.KEYCODE_BUTTON_SELECT to false,
+          KeyEvent.KEYCODE_BUTTON_START to false,
+          KeyEvent.KEYCODE_BUTTON_THUMBL to false,
+          KeyEvent.KEYCODE_BUTTON_THUMBR to false,
+          KeyEvent.KEYCODE_MEDIA_RECORD to false,
+          KeyEvent.KEYCODE_BUTTON_MODE to false, // Xbox button
+          KeyEvent.KEYCODE_DPAD_LEFT to false,
+          KeyEvent.KEYCODE_DPAD_RIGHT to false,
+          KeyEvent.KEYCODE_DPAD_UP to false,
+          KeyEvent.KEYCODE_DPAD_DOWN to false,
+      )
 
   /** The current X coordinate of the pointer (in pixels) */
   var pointerX = windowWidth * 0.5f
@@ -67,7 +88,7 @@ data class CursorState(
 
   /** Indicates whether any measurable deflection has been applied. */
   val hasDeflection: Boolean
-    get() = xDeflection != 0f || yDeflection != 0f
+    get() = xAxis.deflection != 0f || yAxis.deflection != 0f
 
   /** Stops repeating events for this state. */
   fun cancelRepeater() {
@@ -78,11 +99,13 @@ data class CursorState(
    * Updates the stored xDeflection and yDeflection with the contents of the given [MotionEvent].
    */
   fun update(event: MotionEvent) {
-    val rawX = event.getAxisValue(xAxis)
-    val rawY = event.getAxisValue(yAxis)
+    processAxesAsButtons(event)
 
-    xDeflection = if (rawX.absoluteValue < xRange.flat) 0f else rawX
-    yDeflection = if (rawY.absoluteValue < yRange.flat) 0f else rawY
+    val xMoved = xAxis.update(event)
+    val yMoved = yAxis.update(event)
+    if (!xMoved && !yMoved) {
+      return
+    }
 
     applyDeflection()
 
@@ -90,6 +113,26 @@ data class CursorState(
       eventRepeater.restart()
     } else {
       eventRepeater.cancel()
+    }
+  }
+
+  private fun processAxesAsButtons(event: MotionEvent) {
+    var buttonStatesChanged = false
+
+    for (button in buttonAxes) {
+      button.update(event).let { wasModified ->
+        if (wasModified) {
+          buttonStates[button.positiveKeycode] = button.isPositivePressed
+          button.negativeKeycode?.let { negativeKeycode ->
+            buttonStates[negativeKeycode] = button.isNegativeePressed
+          }
+          buttonStatesChanged = true
+        }
+      }
+    }
+
+    if (buttonStatesChanged) {
+      onButtonStatesChanged()
     }
   }
 
@@ -107,8 +150,8 @@ data class CursorState(
       return
     }
 
-    val dX = xDeflection * timeDelta * velocityPixelsPerNanosecond
-    val dY = yDeflection * timeDelta * velocityPixelsPerNanosecond
+    val dX = xAxis.deflection * timeDelta * velocityPixelsPerNanosecond
+    val dY = yAxis.deflection * timeDelta * velocityPixelsPerNanosecond
 
     pointerX = (pointerX + dX).coerceIn(0f, windowWidth)
     pointerY = (pointerY + dY).coerceIn(0f, windowHeight)
@@ -116,7 +159,31 @@ data class CursorState(
     onUpdate(this)
   }
 
+  /** Processes a press/release event. */
+  fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
+    buttonStates[keyCode] = isDown
+
+    return onButtonStatesChanged()
+  }
+
+  /**
+   * Processes the current state of all buttons. Returns "true" if the event that triggered this
+   * call should be passed on to downstream handlers.
+   */
+  private fun onButtonStatesChanged(): Boolean {
+    Log.d(TAG, "Axis as button updated press state")
+    buttonStates.forEach { (k, v) ->
+      if (v) {
+        Log.d(TAG, "\t${KeyEvent.keyCodeToString(k)}")
+      }
+    }
+
+    // TODO: Consume the event if needed.
+    return true
+  }
+
   companion object {
+    const val TAG = "CursorState"
     private const val INPUT_GAP_NANOSECONDS = 150_000_000L
 
     /**
@@ -132,13 +199,25 @@ data class CursorState(
         windowHeight: Float,
         onUpdate: (CursorState) -> Unit,
     ): CursorState {
+      fun makeButtonAxis(axis: Int, keycode: Int, opposingKeycode: Int? = null) =
+          ButtonAxis(RangedAxis(axis, device.getMotionRange(axis)), keycode, opposingKeycode)
+
+      val buttonAxes =
+          listOf(
+              makeButtonAxis(MotionEvent.AXIS_LTRIGGER, KeyEvent.KEYCODE_BUTTON_L2),
+              makeButtonAxis(MotionEvent.AXIS_RTRIGGER, KeyEvent.KEYCODE_BUTTON_R2),
+              makeButtonAxis(
+                  MotionEvent.AXIS_HAT_X, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT),
+              makeButtonAxis(
+                  MotionEvent.AXIS_HAT_Y, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP),
+          )
+
       return CursorState(
           device.id,
           handler,
-          xAxis,
-          yAxis,
-          device.getMotionRange(xAxis),
-          device.getMotionRange(yAxis),
+          xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
+          yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
+          buttonAxes,
           windowWidth,
           windowHeight,
           onUpdate,
@@ -158,5 +237,75 @@ data class CursorState(
 
       return pixelsPerSecond / 1_000_000_000
     }
+  }
+}
+
+/** Encapsulates a [MotionEvent] axis and associated [MotionRange]. */
+private data class RangedAxis(val axis: Int, private val range: MotionRange) {
+  var deflection = 0f
+    private set
+
+  /**
+   * Updates the [deflection] value for this axis. Returns true if the value was substantively
+   * modified.
+   */
+  fun update(event: MotionEvent): Boolean {
+    val raw = event.getAxisValue(axis)
+    val newValue = if (raw.absoluteValue < range.flat) 0f else raw
+
+    if ((newValue - deflection).absoluteValue <= range.fuzz) {
+      return false
+    }
+
+    deflection = newValue
+
+    return true
+  }
+}
+
+/**
+ * Encapsulates a [MotionEvent] axis and associated [MotionRange] that should be mapped to binary
+ * [KeyEvent] keycodes.
+ */
+private data class ButtonAxis(
+    private val axis: RangedAxis,
+    val positiveKeycode: Int,
+    val negativeKeycode: Int?,
+) {
+  var isPositivePressed = false
+    private set
+
+  var isNegativeePressed = false
+    private set
+
+  /**
+   * Updates whether or not this axis represents a pressed button.
+   *
+   * Returns true if the positive or negative press states were modified.
+   */
+  fun update(event: MotionEvent): Boolean {
+    if (!axis.update(event)) {
+      return false
+    }
+
+    val newPositivePressState = axis.deflection >= TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
+
+    var ret = false
+    if (newPositivePressState != isPositivePressed) {
+      isPositivePressed = newPositivePressState
+      ret = true
+    }
+
+    val newNegativePressState = axis.deflection <= -TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD
+    if (negativeKeycode != null && newNegativePressState != isNegativeePressed) {
+      isNegativeePressed = newNegativePressState
+      ret = true
+    }
+
+    return ret
+  }
+
+  private companion object {
+    private const val TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD = 0.8f
   }
 }
