@@ -189,13 +189,15 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
             return
           }
 
-          handler.post { dispatchGesture(gesture, onCompleted, numRetries + 1) }
+          val delay = (numRetries * GESTURE_DISPATCH_RETRY_BACKOFF_MILLIS).toLong()
+          handler.postDelayed({ dispatchGesture(gesture, onCompleted, numRetries + 1) }, delay)
         }
       },
       handler,
     )
   }
 
+  /** Dispatches the gesture(s) built up by the [activeGestureBuilder] and resets it. */
   private fun dispatchPendingGesture() {
     activeGestureBuilder?.let {
       val gesture = it.build()
@@ -352,7 +354,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     val X_AXIS = MotionEvent.AXIS_Z
     val Y_AXIS = MotionEvent.AXIS_RZ
 
-    val MAX_GESTURE_DISPATCH_RETRIES = 15
+    const val MAX_GESTURE_DISPATCH_RETRIES = 15
+    // How many milliseconds to delay before retrying gestures. This value is multiplied by the
+    // retry count so that retries are progressively further apart.
+    const val GESTURE_DISPATCH_RETRY_BACKOFF_MILLIS = 0.5f
 
     const val SWIPE_DISTANCE = 150f
   }
