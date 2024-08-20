@@ -65,11 +65,13 @@ internal class GestureBuilder(state: CursorState) {
       lineTo(pointerX, pointerY)
     }
 
-  private companion object {
-    const val TAG = "GestureBuilder"
+  companion object {
+    private const val TAG = "GestureBuilder"
 
-    const val MIN_DRAG_DISTANCE_SQUARED = 20f * 20f
+    const val MIN_DRAG_DISTANCE = 20f
+    private const val MIN_DRAG_DISTANCE_SQUARED = MIN_DRAG_DISTANCE * MIN_DRAG_DISTANCE
     const val DRAG_GESTURE_DURATION_MILLISECONDS = 30L
+
     val MAX_GESTURE_DURATION_MILLISECONDS = GestureDescription.getMaxGestureDuration()
   }
 }

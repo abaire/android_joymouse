@@ -18,14 +18,7 @@ private constructor(
   private val buttonAxes: List<ButtonAxis>,
   private val toggleButton: VirtualButton,
   private val primaryButton: VirtualButton,
-  private val homeButton: VirtualButton,
-  private val backButton: VirtualButton,
-  private val recentsButton: VirtualButton,
-  private val dpadUpButton: VirtualButton,
-  private val dpadDownButton: VirtualButton,
-  private val dpadLeftButton: VirtualButton,
-  private val dpadRightButton: VirtualButton,
-  private val activateButton: VirtualButton,
+  private val actionTriggers: List<Pair<VirtualButton, Action>>,
   private val windowWidth: Float,
   private val windowHeight: Float,
   private val onUpdatePosition: (CursorState) -> Unit,
@@ -43,6 +36,10 @@ private constructor(
     DPAD_LEFT,
     DPAD_RIGHT,
     ACTIVATE,
+    SWIPE_UP,
+    SWIPE_DOWN,
+    SWIPE_LEFT,
+    SWIPE_RIGHT,
   }
 
   private val eventRepeater =
@@ -225,35 +222,21 @@ private constructor(
       onUpdatePrimaryButton(this)
     }
 
-    fun justReleased(button: VirtualButton): Boolean =
-      button.update(buttonStates) && !button.isPressed
+    val consumedButtons = mutableSetOf<Int>()
+    actionTriggers.forEach { (virtualButton, action) ->
+      // Verify that the buttons needed for this virtual button haven't already been assigned to
+      // some other virtual button.
+      if (consumedButtons.intersect(virtualButton.exclusionKeycodes).isNotEmpty()) {
+        if (virtualButton.isPressed) {
+          virtualButton.reset()
+        }
+        return@forEach
+      }
 
-    if (justReleased(homeButton)) {
-      onAction(this, Action.HOME)
-    }
-
-    if (justReleased(backButton)) {
-      onAction(this, Action.BACK)
-    }
-
-    if (justReleased(recentsButton)) {
-      onAction(this, Action.RECENTS)
-    }
-
-    if (justReleased(dpadUpButton)) {
-      onAction(this, Action.DPAD_UP)
-    }
-    if (justReleased(dpadDownButton)) {
-      onAction(this, Action.DPAD_DOWN)
-    }
-    if (justReleased(dpadLeftButton)) {
-      onAction(this, Action.DPAD_LEFT)
-    }
-    if (justReleased(dpadRightButton)) {
-      onAction(this, Action.DPAD_RIGHT)
-    }
-    if (justReleased(activateButton)) {
-      onAction(this, Action.ACTIVATE)
+      if (virtualButton.update(buttonStates) && !virtualButton.isPressed) {
+        onAction(this, action)
+        consumedButtons.addAll(virtualButton.exclusionKeycodes)
+      }
     }
 
     return isEnabled
@@ -325,7 +308,56 @@ private constructor(
             KeyEvent.KEYCODE_BUTTON_L2,
             KeyEvent.KEYCODE_BUTTON_R1,
             KeyEvent.KEYCODE_BUTTON_R2,
-          )
+          ),
+          emptySet(),
+        )
+
+      val actionTriggers =
+        listOf(
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_UP),
+              setOf(KeyEvent.KEYCODE_DPAD_UP),
+            ),
+            Action.SWIPE_UP,
+          ),
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_DOWN),
+              setOf(KeyEvent.KEYCODE_DPAD_DOWN),
+            ),
+            Action.SWIPE_DOWN,
+          ),
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_LEFT),
+              setOf(KeyEvent.KEYCODE_DPAD_LEFT),
+            ),
+            Action.SWIPE_LEFT,
+          ),
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_RIGHT),
+              setOf(KeyEvent.KEYCODE_DPAD_RIGHT),
+            ),
+            Action.SWIPE_RIGHT,
+          ),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_MODE)), Action.HOME),
+          Pair(
+            ButtonMultiplexer(
+              setOf(
+                KeyEvent.KEYCODE_BUTTON_SELECT,
+                KeyEvent.KEYCODE_BUTTON_B,
+              )
+            ),
+            Action.BACK,
+          ),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_START)), Action.RECENTS),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_UP)), Action.DPAD_UP),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_DOWN)), Action.DPAD_DOWN),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_LEFT)), Action.DPAD_LEFT),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_RIGHT)), Action.DPAD_RIGHT),
+          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_A)), Action.ACTIVATE),
         )
 
       return CursorState(
@@ -336,20 +368,7 @@ private constructor(
         buttonAxes,
         toggleChord,
         primaryButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_R2)),
-        homeButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_MODE)),
-        backButton =
-          ButtonMultiplexer(
-            setOf(
-              KeyEvent.KEYCODE_BUTTON_SELECT,
-              KeyEvent.KEYCODE_BUTTON_B,
-            )
-          ),
-        recentsButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_START)),
-        dpadUpButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_UP)),
-        dpadDownButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_DOWN)),
-        dpadLeftButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_LEFT)),
-        dpadRightButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_RIGHT)),
-        activateButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_A)),
+        actionTriggers = actionTriggers,
         windowWidth,
         windowHeight,
         onUpdatePosition,
@@ -483,7 +502,14 @@ private data class ButtonAxis(
 }
 
 private interface VirtualButton {
+  /** Whether the virtual button is considered pressed. */
   val isPressed: Boolean
+
+  /**
+   * Set of button IDs that must not have been consumed by some other virtual button for this button
+   * to be considered pressed.
+   */
+  val exclusionKeycodes: Set<Int>
 
   /**
    * Updates the state of this [VirtualButton] based on the given physical button states.
@@ -500,7 +526,8 @@ private interface VirtualButton {
  * Defines a set of buttons that will be used to control a virtual button state (if all physical
  * buttons are pressed, the virtual button is considered pressed).
  */
-private data class ButtonChord(val keycodes: Set<Int>) : VirtualButton {
+private data class ButtonChord(val keycodes: Set<Int>, override val exclusionKeycodes: Set<Int>) :
+  VirtualButton {
   override var isPressed = false
     private set
 
@@ -524,9 +551,12 @@ private data class ButtonChord(val keycodes: Set<Int>) : VirtualButton {
  * Defines a set of buttons that will be used to control a virtual button state (if any given
  * physical button is pressed, the virtual button is considered pressed).
  */
-private data class ButtonMultiplexer(val keycodes: Set<Int>) : VirtualButton {
+private data class ButtonMultiplexer(private val keycodes: Set<Int>) : VirtualButton {
   override var isPressed = false
     private set
+
+  override val exclusionKeycodes: Set<Int>
+    get() = keycodes
 
   override fun update(buttonStates: Map<Int, Boolean>): Boolean {
     val currentlyPressed = keycodes.any { buttonStates.getOrDefault(it, false) }

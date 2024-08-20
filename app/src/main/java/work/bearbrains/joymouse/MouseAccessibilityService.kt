@@ -22,6 +22,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
+import kotlin.math.absoluteValue
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService : AccessibilityService(), InputManager.InputDeviceListener {
@@ -120,10 +121,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       return super.onKeyEvent(event)
     }
 
-    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BUTTON_Y) {
-      tempSendRightSwipe()
-    }
-
     return state.handleButtonEvent(event.action == KeyEvent.ACTION_DOWN, event.keyCode)
   }
 
@@ -199,37 +196,6 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     )
   }
 
-  private fun tempSendRightSwipe() {
-
-    fun sendAndThen(s: GestureDescription.StrokeDescription, onCompleted: () -> Unit) {
-      val gesture = GestureDescription.Builder().apply { addStroke(s) }.build()
-      if (!dispatchGesture(gesture, onCompleted)) {
-        Log.e(TAG, "dispatchGesture failed!")
-      }
-    }
-
-    fun send(s: GestureDescription.StrokeDescription) {
-      sendAndThen(s, {})
-    }
-
-    var x = 10f
-    var y = 1700f
-
-    var stroke =
-      GestureDescription.StrokeDescription(
-        Path().apply {
-          moveTo(x, y)
-          x += 400
-          y += 10
-          lineTo(x, y)
-        },
-        1L,
-        30L,
-        false,
-      )
-    send(stroke)
-  }
-
   private fun dispatchPendingGesture() {
     activeGestureBuilder?.let {
       val gesture = it.build()
@@ -243,8 +209,60 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     activeGestureBuilder = null
   }
 
+  private fun dispatchSwipe(state: CursorState, dX: Float, dY: Float) {
+    val endX = (state.pointerX + dX).coerceIn(0f, windowWidth)
+    val endY = (state.pointerY + dY).coerceIn(0f, windowHeight)
+    if (
+      (endX - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE &&
+        (endY - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE
+    ) {
+      Log.d(TAG, "Ignoring short swipe: ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
+      return
+    }
+
+    val builder =
+      GestureDescription.Builder().apply {
+        addStroke(
+          GestureDescription.StrokeDescription(
+            Path().apply {
+              moveTo(state.pointerX, state.pointerY)
+              lineTo(endX, endY)
+            },
+            1L,
+            GestureBuilder.DRAG_GESTURE_DURATION_MILLISECONDS,
+            false,
+          )
+        )
+      }
+    val wasDispatched = dispatchGesture(builder.build())
+    if (!wasDispatched) {
+      Log.e(TAG, "dispatchSwipe failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
+    }
+  }
+
   private fun onAction(state: CursorState, action: CursorState.Action) {
-    performGlobalAction(action.toGlobalAction())
+    when (action) {
+      CursorState.Action.SWIPE_UP -> {
+        dispatchSwipe(state, 0f, -SWIPE_DISTANCE)
+      }
+      CursorState.Action.SWIPE_DOWN -> {
+        dispatchSwipe(state, 0f, SWIPE_DISTANCE)
+      }
+      CursorState.Action.SWIPE_LEFT -> {
+        dispatchSwipe(state, -SWIPE_DISTANCE, 0f)
+      }
+      CursorState.Action.SWIPE_RIGHT -> {
+        dispatchSwipe(state, SWIPE_DISTANCE, 0f)
+      }
+      else -> {
+        val globalAction = action.toGlobalAction()
+        if (globalAction != null) {
+          performGlobalAction(globalAction)
+        } else {
+          Log.e(TAG, "Unexpected Action ${action}")
+        }
+      }
+    }
   }
 
   override fun onInterrupt() {}
@@ -314,7 +332,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       }
   }
 
-  private fun CursorState.Action.toGlobalAction(): Int {
+  private fun CursorState.Action.toGlobalAction(): Int? {
     return when (this) {
       CursorState.Action.BACK -> GLOBAL_ACTION_BACK
       CursorState.Action.HOME -> GLOBAL_ACTION_HOME
@@ -324,6 +342,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       CursorState.Action.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
       CursorState.Action.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
       CursorState.Action.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
+      else -> null
     }
   }
 
@@ -334,6 +353,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     val Y_AXIS = MotionEvent.AXIS_RZ
 
     val MAX_GESTURE_DISPATCH_RETRIES = 15
+
+    const val SWIPE_DISTANCE = 150f
   }
 }
 
