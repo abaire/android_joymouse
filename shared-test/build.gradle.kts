@@ -1,6 +1,9 @@
+import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
+
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.jetbrains.kotlin.android)
+  alias(libs.plugins.ncorti.ktfmt)
 }
 
 android {
@@ -11,15 +14,8 @@ android {
     minSdk = 34
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    consumerProguardFiles("consumer-rules.pro")
   }
 
-  buildTypes {
-    release {
-      isMinifyEnabled = false
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-    }
-  }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -33,4 +29,12 @@ dependencies {
   implementation(libs.material)
 
   compileOnly(project(":app"))
+}
+
+ktfmt { googleStyle() }
+
+tasks.register<KtfmtFormatTask>("ktfmtPrecommit") {
+  source = project.fileTree(rootDir)
+  dependsOn(":app:ktfmtPrecommit")
+  include("**/*.kt")
 }

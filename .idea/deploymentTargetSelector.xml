@@ -4,13 +4,21 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2024-08-21T05:05:12.968082Z">
+          <Target type="DEFAULT_BOOT">
+            <handle>
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=R5CX222TC0X" />
+            </handle>
+          </Target>
+        </DropdownSelection>
+        <DialogSelection />
       </SelectionState>
       <SelectionState runConfigName="All Tests">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-08-20T22:11:36.246187Z">
+        <DropdownSelection timestamp="2024-08-21T04:59:54.377980Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=29151FDH300CLC" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/abaire/.android/avd/Galaxy_S24_API_34.avd" />
             </handle>
           </Target>
         </DropdownSelection>
