@@ -214,14 +214,14 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private fun dispatchGesture(
     gesture: GestureDescription,
-    onCompleted: (() -> Unit)? = null,
     numRetries: Int = 0,
+    onCompleted: ((GestureDescription) -> Unit)? = null,
   ): Boolean {
     return dispatchGesture(
       gesture,
       object : GestureResultCallback() {
         override fun onCompleted(gestureDescription: GestureDescription) {
-          onCompleted?.invoke()
+          onCompleted?.invoke(gestureDescription)
         }
 
         override fun onCancelled(gestureDescription: GestureDescription) {
@@ -234,7 +234,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
           }
 
           val delay = (numRetries * GESTURE_DISPATCH_RETRY_BACKOFF_MILLIS).toLong()
-          handler.postDelayed({ dispatchGesture(gesture, onCompleted, numRetries + 1) }, delay)
+          handler.postDelayed({ dispatchGesture(gesture, numRetries + 1, onCompleted) }, delay)
         }
       },
       handler,
@@ -280,7 +280,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
           )
         )
       }
-    val wasDispatched = dispatchGesture(builder.build())
+    val wasDispatched =
+      dispatchGesture(builder.build()) { gestureDescription ->
+        SwipeVisualization(gestureDescription, this)
+      }
     if (!wasDispatched) {
       Log.e(TAG, "dispatchFling failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
     }
