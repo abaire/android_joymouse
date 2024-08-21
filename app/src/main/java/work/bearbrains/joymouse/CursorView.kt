@@ -1,72 +1,29 @@
 package work.bearbrains.joymouse
 
-import android.graphics.PixelFormat
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
-
 /** Handles rendering a mouse cursor. */
-class CursorView(private val view: View, private val windowManager: WindowManager) {
-  private var isShown = view.parent != null
+interface CursorView {
 
-  private var xPosition: Float = 0f
-  private var yPosition: Float = 0f
+  /** The visual state of this cursor. */
+  enum class State {
+    STATE_RELEASED,
+    STATE_PRESSED_TAP,
+    STATE_PRESSED_LONG_TOUCH,
+    STATE_PRESSED_SLOW_DRAG,
+    STATE_PRESSED_FLING,
+  }
 
   /** Shows the cursor view. */
-  fun show() {
-    if (isShown) {
-      return
-    }
-
-    val params =
-      WindowManager.LayoutParams().apply {
-        type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-        format = PixelFormat.TRANSLUCENT
-        flags =
-          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-        width = WindowManager.LayoutParams.WRAP_CONTENT
-        height = WindowManager.LayoutParams.WRAP_CONTENT
-        gravity = Gravity.TOP or Gravity.START
-        x = xPosition.toInt()
-        y = yPosition.toInt()
-      }
-
-    windowManager.addView(view, params)
-    isShown = true
-  }
+  fun show()
 
   /** Updates the position of the cursor. */
-  fun updatePosition(x: Float, y: Float) {
-    xPosition = x
-    yPosition = y
-
-    if (isShown) {
-      val params = view.layoutParams as WindowManager.LayoutParams
-      params.x = xPosition.toInt()
-      params.y = yPosition.toInt()
-
-      windowManager.updateViewLayout(view, params)
-    }
-  }
+  fun updatePosition(x: Float, y: Float)
 
   /** Hides the cursor. */
-  fun hideCursor() {
-    if (!isShown) {
-      return
-    }
-
-    isShown = false
-    view.let { windowManager.removeView(it) }
-  }
+  fun hideCursor()
 
   /**
    * Used to request a visual indication that the primary button associated with this cursor is
    * down.
    */
-  fun onCursorPressed(isPressed: Boolean) {
-    view.isPressed = isPressed
-  }
+  var cursorState: State
 }

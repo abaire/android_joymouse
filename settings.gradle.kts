@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "JoyMouse"
 include(":app")
- 
+include(":shared-test")

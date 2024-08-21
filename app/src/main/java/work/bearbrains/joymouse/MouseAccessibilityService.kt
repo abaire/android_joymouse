@@ -23,16 +23,19 @@ import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import kotlin.math.absoluteValue
+import work.bearbrains.joymouse.impl.CursorViewImpl
+import work.bearbrains.joymouse.impl.GestureBuilderImpl
+import work.bearbrains.joymouse.impl.NanoClockImpl
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService : AccessibilityService(), InputManager.InputDeviceListener {
-  private var joystickDeviceIdsToState = mutableMapOf<Int, CursorState>()
+  private var joystickDeviceIdsToState = mutableMapOf<Int, JoystickCursorState>()
   private val handler = Handler(Looper.getMainLooper())
 
   private var windowWidth = 0f
   private var windowHeight = 0f
 
-  private val tapTimeout = ViewConfiguration.getTapTimeout()
+  private lateinit var gestureUtil: GestureUtil
 
   var cursorView: CursorView? = null
   val cursorDisplayTimeoutMilliseconds = 1500L
@@ -59,6 +62,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     }
 
   override fun onServiceConnected() {
+    gestureUtil =
+      GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
     val cursorIcon =
       ImageView(this).apply {
         val drawable =
@@ -71,17 +76,48 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
         imageTintList =
           ColorStateList(
             arrayOf(
-              intArrayOf(android.R.attr.state_pressed),
-              intArrayOf(),
+              // STATE_RELEASED
+              intArrayOf(
+                android.R.attr.state_enabled,
+                -android.R.attr.state_pressed,
+                -android.R.attr.state_selected
+              ),
+              // STATE_PRESSED_TAP
+              intArrayOf(
+                -android.R.attr.state_enabled,
+                -android.R.attr.state_pressed,
+                -android.R.attr.state_selected
+              ),
+              // STATE_PRESSED_LONG_TOUCH
+              intArrayOf(
+                android.R.attr.state_enabled,
+                android.R.attr.state_pressed,
+                -android.R.attr.state_selected
+              ),
+              // STATE_PRESSED_SLOW_DRAG
+              intArrayOf(
+                -android.R.attr.state_enabled,
+                android.R.attr.state_pressed,
+                -android.R.attr.state_selected
+              ),
+              // STATE_PRESSED_FLING
+              intArrayOf(
+                android.R.attr.state_enabled,
+                -android.R.attr.state_pressed,
+                android.R.attr.state_selected
+              ),
             ),
             intArrayOf(
-              Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
               Color.WHITE,
+              Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
+              Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
+              Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
+              Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
             ),
           )
       }
 
-    cursorView = CursorView(cursorIcon, getSystemService(Context.WINDOW_SERVICE) as WindowManager)
+    cursorView = CursorViewImpl(cursorIcon, getSystemService(WINDOW_SERVICE) as WindowManager)
 
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
@@ -137,28 +173,39 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     super.onMotionEvent(event)
   }
 
-  private fun updateCursorPosition(state: CursorState) {
+  private fun updateCursorPosition(state: JoystickCursorState) {
     cursorHider.cancel()
+
+    activeGestureBuilder?.cursorMove(state)
 
     cursorView?.apply {
       updatePosition(state.pointerX, state.pointerY)
       if (!state.isPrimaryButtonPressed) {
         cursorHider.restart()
+      } else {
+        updateCursorViewState()
       }
       show()
     }
-
-    activeGestureBuilder?.cursorMove(state)
   }
 
-  private fun onUpdatePrimaryButton(state: CursorState) {
+  /** Update the visual state of the cursor based on the under-construction gesture action. */
+  private fun updateCursorViewState() {
+    cursorView?.apply {
+      activeGestureBuilder?.action?.let { action -> cursorState = action.toCursorState() }
+    }
+  }
+
+  private fun onUpdatePrimaryButton(state: JoystickCursorState) {
     updateCursorPosition(state)
 
     if (state.isPrimaryButtonPressed) {
-      activeGestureBuilder = GestureBuilder(state)
-      cursorView?.onCursorPressed(true)
+      activeGestureBuilder = GestureBuilderImpl(state, gestureUtil, NanoClockImpl())
+      cursorView?.cursorState = CursorView.State.STATE_PRESSED_TAP
+
+      handler.postDelayed(::updateCursorViewState, gestureUtil.longTouchThresholdMilliseconds)
     } else {
-      cursorView?.onCursorPressed(false)
+      cursorView?.cursorState = CursorView.State.STATE_RELEASED
       activeGestureBuilder?.endGesture(state)
       dispatchPendingGesture()
       cursorHider.restart()
@@ -182,10 +229,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
           // could pass the activation threshold, triggering this method, then emit further events
           // and cancel the gesture.
           if (numRetries > MAX_GESTURE_DISPATCH_RETRIES) {
-            Log.d(
-              TAG,
-              "!!!!\n Gesture cancelled after ${numRetries} retries: ${gestureDescription}\n\n"
-            )
+            Log.w(TAG, "Gesture cancelled after ${numRetries} retries: ${gestureDescription}")
             return
           }
 
@@ -211,7 +255,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     activeGestureBuilder = null
   }
 
-  private fun dispatchSwipe(state: CursorState, dX: Float, dY: Float) {
+  private fun dispatchFling(state: JoystickCursorState, dX: Float, dY: Float) {
     val endX = (state.pointerX + dX).coerceIn(0f, windowWidth)
     val endY = (state.pointerY + dY).coerceIn(0f, windowHeight)
     if (
@@ -231,30 +275,30 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
               lineTo(endX, endY)
             },
             1L,
-            GestureBuilder.DRAG_GESTURE_DURATION_MILLISECONDS,
+            gestureUtil.flingTimeBetween(state.pointerX, state.pointerY, endX, endY),
             false,
           )
         )
       }
     val wasDispatched = dispatchGesture(builder.build())
     if (!wasDispatched) {
-      Log.e(TAG, "dispatchSwipe failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
+      Log.e(TAG, "dispatchFling failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
     }
   }
 
-  private fun onAction(state: CursorState, action: CursorState.Action) {
+  private fun onAction(state: JoystickCursorState, action: JoystickCursorState.Action) {
     when (action) {
-      CursorState.Action.SWIPE_UP -> {
-        dispatchSwipe(state, 0f, -SWIPE_DISTANCE)
+      JoystickCursorState.Action.SWIPE_UP -> {
+        dispatchFling(state, 0f, -SWIPE_DISTANCE)
       }
-      CursorState.Action.SWIPE_DOWN -> {
-        dispatchSwipe(state, 0f, SWIPE_DISTANCE)
+      JoystickCursorState.Action.SWIPE_DOWN -> {
+        dispatchFling(state, 0f, SWIPE_DISTANCE)
       }
-      CursorState.Action.SWIPE_LEFT -> {
-        dispatchSwipe(state, -SWIPE_DISTANCE, 0f)
+      JoystickCursorState.Action.SWIPE_LEFT -> {
+        dispatchFling(state, -SWIPE_DISTANCE, 0f)
       }
-      CursorState.Action.SWIPE_RIGHT -> {
-        dispatchSwipe(state, SWIPE_DISTANCE, 0f)
+      JoystickCursorState.Action.SWIPE_RIGHT -> {
+        dispatchFling(state, SWIPE_DISTANCE, 0f)
       }
       else -> {
         val globalAction = action.toGlobalAction()
@@ -314,7 +358,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
   private fun addJoystickDevice(device: InputDevice) {
     joystickDeviceIdsToState[device.id] =
-      CursorState.create(
+      JoystickCursorStateImpl.create(
         device,
         handler,
         X_AXIS,
@@ -334,16 +378,16 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
       }
   }
 
-  private fun CursorState.Action.toGlobalAction(): Int? {
+  private fun JoystickCursorState.Action.toGlobalAction(): Int? {
     return when (this) {
-      CursorState.Action.BACK -> GLOBAL_ACTION_BACK
-      CursorState.Action.HOME -> GLOBAL_ACTION_HOME
-      CursorState.Action.RECENTS -> GLOBAL_ACTION_RECENTS
-      CursorState.Action.DPAD_UP -> GLOBAL_ACTION_DPAD_UP
-      CursorState.Action.DPAD_DOWN -> GLOBAL_ACTION_DPAD_DOWN
-      CursorState.Action.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
-      CursorState.Action.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
-      CursorState.Action.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
+      JoystickCursorState.Action.BACK -> GLOBAL_ACTION_BACK
+      JoystickCursorState.Action.HOME -> GLOBAL_ACTION_HOME
+      JoystickCursorState.Action.RECENTS -> GLOBAL_ACTION_RECENTS
+      JoystickCursorState.Action.DPAD_UP -> GLOBAL_ACTION_DPAD_UP
+      JoystickCursorState.Action.DPAD_DOWN -> GLOBAL_ACTION_DPAD_DOWN
+      JoystickCursorState.Action.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
+      JoystickCursorState.Action.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
+      JoystickCursorState.Action.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
       else -> null
     }
   }
@@ -365,3 +409,11 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
 
 private val InputDevice.isJoystick: Boolean
   get() = isExternal && isEnabled && supportsSource(SOURCE_JOYSTICK)
+
+private fun GestureBuilder.Action.toCursorState(): CursorView.State =
+  when (this) {
+    GestureBuilder.Action.TOUCH -> CursorView.State.STATE_PRESSED_TAP
+    GestureBuilder.Action.LONG_TOUCH -> CursorView.State.STATE_PRESSED_LONG_TOUCH
+    GestureBuilder.Action.DRAG -> CursorView.State.STATE_PRESSED_SLOW_DRAG
+    GestureBuilder.Action.FLING -> CursorView.State.STATE_PRESSED_FLING
+  }

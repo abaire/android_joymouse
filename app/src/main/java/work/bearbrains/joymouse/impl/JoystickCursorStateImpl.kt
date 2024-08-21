@@ -7,8 +7,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import kotlin.math.absoluteValue
 
-/** Encapsulates state for a virtual cursor that is controlled by axes from [MotionEvent]s. */
-class CursorState
+/** Concrete implementation of [JoystickCursorState]. */
+class JoystickCursorStateImpl
 private constructor(
   /** The ID of the physical device that this repeater is associated with. */
   val deviceId: Int,
@@ -18,29 +18,14 @@ private constructor(
   private val buttonAxes: List<ButtonAxis>,
   private val toggleButton: VirtualButton,
   private val primaryButton: VirtualButton,
-  private val actionTriggers: List<Pair<VirtualButton, Action>>,
+  private val actionTriggers: List<Pair<VirtualButton, JoystickCursorState.Action>>,
   private val windowWidth: Float,
   private val windowHeight: Float,
-  private val onUpdatePosition: (CursorState) -> Unit,
-  private val onUpdatePrimaryButton: (CursorState) -> Unit,
-  private val onAction: (CursorState, Action) -> Unit,
-  private val onEnableChanged: (CursorState) -> Unit,
-) {
-
-  enum class Action {
-    BACK,
-    HOME,
-    RECENTS,
-    DPAD_UP,
-    DPAD_DOWN,
-    DPAD_LEFT,
-    DPAD_RIGHT,
-    ACTIVATE,
-    SWIPE_UP,
-    SWIPE_DOWN,
-    SWIPE_LEFT,
-    SWIPE_RIGHT,
-  }
+  private val onUpdatePosition: (JoystickCursorState) -> Unit,
+  private val onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
+  private val onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit,
+  private val onEnableChanged: (JoystickCursorState) -> Unit,
+) : JoystickCursorState {
 
   private val eventRepeater =
     object : Runnable {
@@ -84,8 +69,7 @@ private constructor(
       KeyEvent.KEYCODE_DPAD_DOWN to false,
     )
 
-  /** Whether or not this virtual cursor is enabled or has been toggled off via a button chord. */
-  var isEnabled: Boolean = true
+  override var isEnabled: Boolean = true
     private set(value) {
       if (!value) {
         eventRepeater.cancel()
@@ -98,41 +82,32 @@ private constructor(
       onEnableChanged(this)
     }
 
-  /** The current X coordinate of the pointer (in pixels) */
-  var pointerX = windowWidth * 0.5f
+  override var pointerX = windowWidth * 0.5f
     private set
 
-  /** The current Y coordinate of the pointer (in pixels) */
-  var pointerY = windowHeight * 0.5f
+  override var pointerY = windowHeight * 0.5f
     private set
 
-  /** The default velocity of the pointer. */
   private val defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(windowWidth, windowHeight)
 
   private var lastEventTimeMilliseconds: Long? = null
 
-  /** Indicates that the primary virtual mouse button is currently pressed. */
-  val isPrimaryButtonPressed: Boolean
+  override val isPrimaryButtonPressed: Boolean
     get() = primaryButton.isPressed
 
-  /** Indicates whether any measurable deflection has been applied. */
-  val hasDeflection: Boolean
-    get() = xAxis.deflection != 0f || yAxis.deflection != 0f
-
-  /** Indicates that the cursor speed should be set to "fast". */
-  val isFastCursorEnabled: Boolean
+  override val isFastCursorEnabled: Boolean
     get() = buttonStates.getOrDefault(KeyEvent.KEYCODE_BUTTON_L2, false)
 
-  /** Stops repeating events for this state. */
-  fun cancelRepeater() {
+  /** Indicates whether any measurable deflection has been applied. */
+  private val hasDeflection: Boolean
+    get() = xAxis.deflection != 0f || yAxis.deflection != 0f
+
+  override fun cancelRepeater() {
     eventRepeater.cancel()
   }
 
-  /**
-   * Updates the stored xDeflection and yDeflection with the contents of the given [MotionEvent].
-   */
-  fun update(event: MotionEvent) {
+  override fun update(event: MotionEvent) {
     processAxesAsButtons(event)
 
     if (!isEnabled) {
@@ -174,8 +149,7 @@ private constructor(
     }
   }
 
-  /** Applies the last calculated deflection values. */
-  fun applyDeflection() {
+  override fun applyDeflection() {
     val timeDelta = lastEventTimeMilliseconds?.let { (System.nanoTime() - it) } ?: 0L
     lastEventTimeMilliseconds = System.nanoTime()
 
@@ -201,8 +175,7 @@ private constructor(
     onUpdatePosition(this)
   }
 
-  /** Processes a press/release event. Returns true if the event was consumed. */
-  fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
+  override fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
     buttonStates[keyCode] = isDown
 
     return onButtonStatesChanged()
@@ -243,7 +216,7 @@ private constructor(
   }
 
   companion object {
-    const val TAG = "CursorState"
+    const val TAG = "JoystickCursorStateImpl"
     private const val INPUT_GAP_NANOSECONDS = 150_000_000L
 
     private const val FAST_CURSOR_MODIFIER = 2f
@@ -259,11 +232,11 @@ private constructor(
       yAxis: Int,
       windowWidth: Float,
       windowHeight: Float,
-      onUpdatePosition: (CursorState) -> Unit,
-      onUpdatePrimaryButton: (CursorState) -> Unit,
-      onAction: (CursorState, Action) -> Unit,
-      onEnableChanged: (CursorState) -> Unit,
-    ): CursorState {
+      onUpdatePosition: (JoystickCursorState) -> Unit,
+      onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
+      onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit,
+      onEnableChanged: (JoystickCursorState) -> Unit,
+    ): JoystickCursorState {
       fun makeButtonAxis(
         axis: Int,
         keycode: Int,
@@ -319,30 +292,33 @@ private constructor(
               setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_UP),
               setOf(KeyEvent.KEYCODE_DPAD_UP),
             ),
-            Action.SWIPE_UP,
+            JoystickCursorState.Action.SWIPE_UP,
           ),
           Pair(
             ButtonChord(
               setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_DOWN),
               setOf(KeyEvent.KEYCODE_DPAD_DOWN),
             ),
-            Action.SWIPE_DOWN,
+            JoystickCursorState.Action.SWIPE_DOWN,
           ),
           Pair(
             ButtonChord(
               setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_LEFT),
               setOf(KeyEvent.KEYCODE_DPAD_LEFT),
             ),
-            Action.SWIPE_LEFT,
+            JoystickCursorState.Action.SWIPE_LEFT,
           ),
           Pair(
             ButtonChord(
               setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_RIGHT),
               setOf(KeyEvent.KEYCODE_DPAD_RIGHT),
             ),
-            Action.SWIPE_RIGHT,
+            JoystickCursorState.Action.SWIPE_RIGHT,
           ),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_MODE)), Action.HOME),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_MODE)),
+            JoystickCursorState.Action.HOME
+          ),
           Pair(
             ButtonMultiplexer(
               setOf(
@@ -350,17 +326,35 @@ private constructor(
                 KeyEvent.KEYCODE_BUTTON_B,
               )
             ),
-            Action.BACK,
+            JoystickCursorState.Action.BACK,
           ),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_START)), Action.RECENTS),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_UP)), Action.DPAD_UP),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_DOWN)), Action.DPAD_DOWN),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_LEFT)), Action.DPAD_LEFT),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_RIGHT)), Action.DPAD_RIGHT),
-          Pair(ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_A)), Action.ACTIVATE),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_START)),
+            JoystickCursorState.Action.RECENTS
+          ),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_UP)),
+            JoystickCursorState.Action.DPAD_UP
+          ),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_DOWN)),
+            JoystickCursorState.Action.DPAD_DOWN
+          ),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_LEFT)),
+            JoystickCursorState.Action.DPAD_LEFT
+          ),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_DPAD_RIGHT)),
+            JoystickCursorState.Action.DPAD_RIGHT
+          ),
+          Pair(
+            ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_A)),
+            JoystickCursorState.Action.ACTIVATE
+          ),
         )
 
-      return CursorState(
+      return JoystickCursorStateImpl(
         device.id,
         handler,
         xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),

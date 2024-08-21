@@ -13,6 +13,10 @@ material = "1.12.0"
 
 ktfmt = "0.17.0"
 
+robolectricVersion = "4.11.1"
+googleTruthVersion = "1.4.0"
+coreKtxVersion = "1.6.1"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -28,9 +32,13 @@ androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectricVersion"}
+google-truth = {group = "com.google.truth", name = "truth", version.ref = "googleTruthVersion"}
+core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 ncorti-ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
+android-library = { id = "com.android.library", version.ref = "agp" }
