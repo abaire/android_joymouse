@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +38,38 @@ fun MainScreen(
       Button(onClick = { onLaunchAccessibilitySettings() }) {
         Text(stringResource(id = R.string.button_open_accessibility_settings))
       }
+    }
+
+    LazyColumn(
+      modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
+      verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
+    ) {
+      item {
+        Text(
+          text = stringResource(id = R.string.operating_instructions_section_title),
+          style = MaterialTheme.typography.headlineMedium
+        )
+      }
+      item { Text(text = stringResource(id = R.string.operating_instructions)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_primary_button)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
+
+      item {
+        Text(
+          text = stringResource(id = R.string.operating_instructions_actions_section_title),
+          style = MaterialTheme.typography.headlineSmall
+        )
+      }
+
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_back)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_home)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_start)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_activate)) }
+
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_up)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_down)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_left)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_right)) }
     }
   }
 }
