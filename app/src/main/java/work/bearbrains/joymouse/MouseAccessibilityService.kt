@@ -4,11 +4,9 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
-import android.graphics.PorterDuff
 import android.hardware.display.DisplayManager
 import android.hardware.input.InputManager
 import android.os.Handler
@@ -19,65 +17,46 @@ import android.view.InputDevice
 import android.view.InputDevice.SOURCE_JOYSTICK
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.SurfaceControl
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.widget.ImageView
-import androidx.core.content.ContextCompat
+import android.view.accessibility.AccessibilityNodeInfo
 import kotlin.math.absoluteValue
-import work.bearbrains.joymouse.impl.CursorViewImpl
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.impl.NanoClockImpl
-import work.bearbrains.joymouse.ui.SwipeVisualization
+import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService :
   AccessibilityService(), InputManager.InputDeviceListener, DisplayManager.DisplayListener {
+
+  // Maps a joystick device ID to a [JoystickCursorState] responsible for tracking the virtual mouse
+  // state.
   private var joystickDeviceIdsToState = mutableMapOf<Int, JoystickCursorState>()
+
+  // Maps the ID of a [Display] to a state object encapsulating the ability to auto-hide the cursor
+  // as well as an overlay surface into which the cursor will be drawn.
+  private val displayIdToCursorDisplayState = mutableMapOf<Int, CursorDisplayState>()
+
   private val handler = Handler(Looper.getMainLooper())
 
   private val displayInfos = mutableMapOf<Int, DisplayInfo>()
 
   private lateinit var gestureUtil: GestureUtil
 
-  // TODO: Associate with a joystick state to allow multiple controllers.
-  var cursorView: CursorView? = null
-  val cursorDisplayTimeoutMilliseconds = 1500L
+  private val cursorDisplayTimeoutMilliseconds = 1500L
 
   // TODO: activeGestureBuilder should be associated with a joystick state
   // This would allow multiple cursors to be controlled independently.
   private var activeGestureBuilder: GestureBuilder? = null
 
-  private val cursorHider =
-    object : Runnable {
-      override fun run() {
-        Log.d(TAG, "Hiding cursor due to inactivity")
-        cursorView?.hideCursor()
-      }
-
-      /** Queues this repeater for future processing. */
-      fun restart() {
-        cancel()
-        handler.postDelayed(this, cursorDisplayTimeoutMilliseconds)
-      }
-
-      /** Cancels any pending runs for this repeater. */
-      fun cancel() {
-        handler.removeCallbacks(this)
-      }
-    }
-
-  private lateinit var cursorIcon: ImageView
-
   override fun onServiceConnected() {
-    cursorIcon = createCursorIcon()
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
 
     gestureUtil =
       GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
-
-    cursorView = CursorViewImpl(cursorIcon, getSystemService(WINDOW_SERVICE) as WindowManager)
 
     val info = serviceInfo
     info.motionEventSources = SOURCE_JOYSTICK
@@ -154,41 +133,59 @@ class MouseAccessibilityService :
   }
 
   private fun updateCursorPosition(state: JoystickCursorState) {
-    cursorHider.cancel()
+    val displayInfo = state.displayInfo
+    val cursorState = displayIdToCursorDisplayState.get(displayInfo.displayId)
+    if (cursorState == null) {
+      Log.e(
+        TAG,
+        "Ignoring cursor position update for missing display ID ${state.displayInfo.displayId}"
+      )
+      return
+    }
+    cursorState.cancelHider()
 
     activeGestureBuilder?.cursorMove(state)
-
-    cursorView?.apply {
-      updatePosition(state.pointerX, state.pointerY)
-      if (!state.isPrimaryButtonPressed) {
-        cursorHider.restart()
-      } else {
-        updateCursorViewState()
-      }
-      show()
+    cursorState.overlay.draw(state.pointerX, state.pointerY)
+    if (!state.isPrimaryButtonPressed) {
+      cursorState.restartHider()
+    } else {
+      updateCursorDisplayState(cursorState)
     }
+    cursorState.show()
   }
 
   /** Update the visual state of the cursor based on the under-construction gesture action. */
-  private fun updateCursorViewState() {
-    cursorView?.apply {
-      activeGestureBuilder?.action?.let { action -> cursorState = action.toCursorState() }
+  private fun updateCursorDisplayState(displayState: CursorDisplayState) {
+    activeGestureBuilder?.action?.let { action ->
+      displayState.currentState = action.toCursorState()
     }
   }
 
   private fun onUpdatePrimaryButton(state: JoystickCursorState) {
     updateCursorPosition(state)
+    val displayInfo = state.displayInfo
+    val cursorState = displayIdToCursorDisplayState.get(displayInfo.displayId)
+    if (cursorState == null) {
+      Log.e(
+        TAG,
+        "Ignoring cursor view state update for missing display ID ${displayInfo.displayId}"
+      )
+      return
+    }
 
     if (state.isPrimaryButtonPressed) {
       activeGestureBuilder = GestureBuilderImpl(state, gestureUtil, NanoClockImpl())
-      cursorView?.cursorState = CursorView.State.STATE_PRESSED_TAP
+      cursorState.currentState = CursorDisplayState.State.STATE_PRESSED_TAP
 
-      handler.postDelayed(::updateCursorViewState, gestureUtil.longTouchThresholdMilliseconds)
+      handler.postDelayed(
+        { updateCursorDisplayState(cursorState) },
+        gestureUtil.longTouchThresholdMilliseconds
+      )
     } else {
-      cursorView?.cursorState = CursorView.State.STATE_RELEASED
+      cursorState.currentState = CursorDisplayState.State.STATE_RELEASED
       activeGestureBuilder?.endGesture(state)
       dispatchPendingGesture()
-      cursorHider.restart()
+      cursorState.restartHider()
     }
   }
 
@@ -264,7 +261,8 @@ class MouseAccessibilityService :
       }
     val wasDispatched =
       dispatchGesture(builder.build()) { gestureDescription ->
-        SwipeVisualization(gestureDescription, state.displayInfo.context)
+        // TODO: Render swipe into overlay.
+        //        SwipeVisualization(gestureDescription, state.displayInfo.context)
       }
     if (!wasDispatched) {
       Log.e(TAG, "dispatchFling failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
@@ -311,14 +309,11 @@ class MouseAccessibilityService :
       return
     }
 
-    destroyCursorState(state)
-    cursorView?.hideCursor()
-    cursorView =
-      CursorViewImpl(
-        cursorIcon,
-        newDisplayInfo.context.getSystemService(WINDOW_SERVICE) as WindowManager
-      )
+    destroyJoystickCursorState(state)
+    displayIdToCursorDisplayState.get(currentDisplayId)?.hide()
+
     activeGestureBuilder = null
+    selectDisplayRootWindow(newDisplayId)
     val newState = addJoystickDevice(device, newDisplayInfo)
     updateCursorPosition(newState)
   }
@@ -375,7 +370,7 @@ class MouseAccessibilityService :
     Log.d(TAG, "Ignoring onInputDeviceChanged for device ID ${deviceId}")
   }
 
-  private fun getDisplayContext(): Context {
+  private fun getDefaultDisplayContext(): Context {
     displayInfos.get(Display.DEFAULT_DISPLAY)?.let { info ->
       return info.context
     }
@@ -385,13 +380,56 @@ class MouseAccessibilityService :
     return createDisplayContext(defaultDisplay)
   }
 
-  private fun measureDisplays() {
-    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-    val defaultDisplayContext = getDisplayContext()
+  /**
+   * [DisplayManager] enumerates physical displays but in the case of Samsung DEX, the alternate
+   * display appears to be a virtual display whose ID does not appear in the [DisplayManager]
+   * enumeration. This method uses the accessibility window list to discover all displays with at
+   * least one window.
+   */
+  private fun extractDisplaysFromWindows(): List<Display> {
+    val ret = mutableListOf<Display>()
 
+    val displayToWindows = windowsOnAllDisplays
+    val numDisplays = displayToWindows.size()
+    Log.d(TAG, "extractDisplaysFromWindows: detected ${numDisplays} with accessibility window info")
+
+    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    for (i in 0 ..< numDisplays) {
+      val key = displayToWindows.keyAt(i)
+      displayManager.getDisplay(key)?.let { ret.add(it) }
+    }
+
+    return ret
+  }
+
+  /** Sends a SELECT action to the root node of the given display (which may be virtual). */
+  private fun selectDisplayRootWindow(displayId: Int): Boolean {
+    val windows = windowsOnAllDisplays[displayId]
+    if (windows == null) {
+      Log.e(TAG, "Ignoring attempt to select root node on unknown displayId ${displayId}")
+      return false
+    }
+    if (windows.size == 0) {
+      Log.e(TAG, "Ignoring attempt to select root node on displayId ${displayId} with no windows")
+      return false
+    }
+
+    val rootWindow = windows.last()
+    val rootNode = rootWindow.root
+
+    val actionToPerform = AccessibilityNodeInfo.ACTION_SELECT
+    val success = rootNode.performAction(actionToPerform)
+    if (!success) {
+      Log.e(TAG, "Failed to select root node ${rootNode} on display ${displayId}")
+    }
+    return success
+  }
+
+  private fun measureDisplays() {
+    val defaultDisplayContext = getDefaultDisplayContext()
     val detectedDisplayIds = mutableSetOf<Int>()
 
-    for (display in displayManager.displays) {
+    for (display in extractDisplaysFromWindows()) {
       val context =
         if (display.displayId == Display.DEFAULT_DISPLAY) {
           defaultDisplayContext
@@ -408,25 +446,31 @@ class MouseAccessibilityService :
       val windowWidth = windowManager.maximumWindowMetrics.bounds.width().toFloat()
       val windowHeight = windowManager.maximumWindowMetrics.bounds.height().toFloat()
 
-      displayInfos[display.displayId] =
-        DisplayInfo(display.displayId, context, windowWidth, windowHeight)
+      val info = DisplayInfo(display.displayId, context, windowWidth, windowHeight)
+      displayInfos[display.displayId] = info
       detectedDisplayIds.add(display.displayId)
-      Log.d(TAG, "Display ${display.displayId} ${windowWidth} x ${windowHeight}")
+
+      val cursorOverlay = CursorAccessibilityOverlay(info)
+
+      displayIdToCursorDisplayState[display.displayId] =
+        CursorDisplayState(cursorOverlay, handler, onShow = ::attachAccessibilityOverlayToDisplay)
     }
 
-    for (displayId in displayInfos.keys) {
+    val displayInfoKeys = displayInfos.keys
+    for (displayId in displayInfoKeys) {
       if (!detectedDisplayIds.contains(displayId)) {
+        displayIdToCursorDisplayState[displayId]?.hide()
         displayInfos.remove(displayId)
       }
     }
   }
 
-  private fun destroyCursorState(state: JoystickCursorState) {
+  private fun destroyJoystickCursorState(state: JoystickCursorState) {
     state.cancelRepeater()
   }
 
   private fun destroyCursors() {
-    joystickDeviceIdsToState.forEach { (_, state) -> destroyCursorState(state) }
+    joystickDeviceIdsToState.forEach { (_, state) -> destroyJoystickCursorState(state) }
     joystickDeviceIdsToState.clear()
   }
 
@@ -460,8 +504,13 @@ class MouseAccessibilityService :
         onAction = ::onAction,
       ) { state ->
         if (!state.isEnabled) {
-          cursorView?.hideCursor()
-          cursorHider.cancel()
+          val displayInfo = state.displayInfo
+          val cursorState = displayIdToCursorDisplayState.get(displayInfo.displayId)
+          if (cursorState == null) {
+            Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
+          } else {
+            cursorState.hide()
+          }
         } else {
           updateCursorPosition(state)
         }
@@ -485,59 +534,6 @@ class MouseAccessibilityService :
     }
   }
 
-  private fun createCursorIcon(): ImageView =
-    ImageView(this).apply {
-      val drawable =
-        ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
-      setImageDrawable(drawable)
-
-      fitsSystemWindows = false
-
-      imageTintMode = PorterDuff.Mode.MULTIPLY
-      imageTintList =
-        ColorStateList(
-          arrayOf(
-            // STATE_RELEASED
-            intArrayOf(
-              android.R.attr.state_enabled,
-              -android.R.attr.state_pressed,
-              -android.R.attr.state_selected
-            ),
-            // STATE_PRESSED_TAP
-            intArrayOf(
-              -android.R.attr.state_enabled,
-              -android.R.attr.state_pressed,
-              -android.R.attr.state_selected
-            ),
-            // STATE_PRESSED_LONG_TOUCH
-            intArrayOf(
-              android.R.attr.state_enabled,
-              android.R.attr.state_pressed,
-              -android.R.attr.state_selected
-            ),
-            // STATE_PRESSED_SLOW_DRAG
-            intArrayOf(
-              -android.R.attr.state_enabled,
-              android.R.attr.state_pressed,
-              -android.R.attr.state_selected
-            ),
-            // STATE_PRESSED_FLING
-            intArrayOf(
-              android.R.attr.state_enabled,
-              -android.R.attr.state_pressed,
-              android.R.attr.state_selected
-            ),
-          ),
-          intArrayOf(
-            Color.WHITE,
-            Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
-            Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
-            Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
-            Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
-          ),
-        )
-    }
-
   private companion object {
     const val TAG = "MouseAccessibilityService"
 
@@ -556,10 +552,95 @@ class MouseAccessibilityService :
 private val InputDevice.isJoystick: Boolean
   get() = isExternal && isEnabled && supportsSource(SOURCE_JOYSTICK)
 
-private fun GestureBuilder.Action.toCursorState(): CursorView.State =
+private class CursorDisplayState(
+  val overlay: CursorAccessibilityOverlay,
+  private val handler: Handler,
+  val cursorDisplayTimeoutMilliseconds: Long = 1500L,
+  private val onShow: (Int, SurfaceControl) -> Unit,
+) {
+  /** The visual state of this cursor. */
+  enum class State {
+    STATE_RELEASED,
+    STATE_PRESSED_TAP,
+    STATE_PRESSED_LONG_TOUCH,
+    STATE_PRESSED_SLOW_DRAG,
+    STATE_PRESSED_FLING,
+  }
+
+  /** Whether or not the cursor overlay is currently displayed. */
+  var isShown: Boolean = false
+    private set
+
+  /** Tracks the current display state of this cursor. */
+  var currentState: State = State.STATE_RELEASED
+    set(value) {
+      if (value == field) {
+        return
+      }
+
+      field = value
+      // Safe as long as TINT_MAP is always kept in sync with the [State] enumeration.
+      overlay.tintColor = TINT_MAP[value]!!
+    }
+
+  private val hider =
+    object : Runnable {
+      override fun run() {
+        Log.d(TAG, "Hiding cursor on display ${overlay.displayInfo} due to inactivity")
+        hide()
+      }
+    }
+
+  /** Shows the [overlay] managed by this state. */
+  fun show() {
+    if (isShown) {
+      return
+    }
+
+    onShow(overlay.displayInfo.displayId, overlay.surfaceControl)
+    isShown = true
+  }
+
+  /** Hides the [overlay] managed by this state. */
+  fun hide() {
+    cancelHider()
+    if (!isShown) {
+      return
+    }
+
+    SurfaceControl.Transaction().reparent(overlay.surfaceControl, null).apply()
+    isShown = false
+  }
+
+  /** Queues a future action to invoke the `onHide` callback. */
+  fun restartHider() {
+    cancelHider()
+    handler.postDelayed(hider, cursorDisplayTimeoutMilliseconds)
+  }
+
+  /** Cancels any pending runs for the hide timer. */
+  fun cancelHider() {
+    handler.removeCallbacks(hider)
+  }
+
+  private companion object {
+    const val TAG = "CursorDisplayState"
+
+    val TINT_MAP =
+      mapOf(
+        State.STATE_RELEASED to Color.WHITE,
+        State.STATE_PRESSED_TAP to Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
+        State.STATE_PRESSED_LONG_TOUCH to Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
+        State.STATE_PRESSED_SLOW_DRAG to Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
+        State.STATE_PRESSED_FLING to Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
+      )
+  }
+}
+
+private fun GestureBuilder.Action.toCursorState(): CursorDisplayState.State =
   when (this) {
-    GestureBuilder.Action.TOUCH -> CursorView.State.STATE_PRESSED_TAP
-    GestureBuilder.Action.LONG_TOUCH -> CursorView.State.STATE_PRESSED_LONG_TOUCH
-    GestureBuilder.Action.DRAG -> CursorView.State.STATE_PRESSED_SLOW_DRAG
-    GestureBuilder.Action.FLING -> CursorView.State.STATE_PRESSED_FLING
+    GestureBuilder.Action.TOUCH -> CursorDisplayState.State.STATE_PRESSED_TAP
+    GestureBuilder.Action.LONG_TOUCH -> CursorDisplayState.State.STATE_PRESSED_LONG_TOUCH
+    GestureBuilder.Action.DRAG -> CursorDisplayState.State.STATE_PRESSED_SLOW_DRAG
+    GestureBuilder.Action.FLING -> CursorDisplayState.State.STATE_PRESSED_FLING
   }
