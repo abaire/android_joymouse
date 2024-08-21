@@ -13,6 +13,7 @@ class JoystickCursorStateImpl
 private constructor(
   /** The ID of the physical device that this repeater is associated with. */
   val deviceId: Int,
+  override val displayInfo: DisplayInfo,
   private val handler: Handler,
   private val xAxis: RangedAxis,
   private val yAxis: RangedAxis,
@@ -20,8 +21,6 @@ private constructor(
   private val toggleButton: VirtualButton,
   private val primaryButton: VirtualButton,
   private val actionTriggers: List<Pair<VirtualButton, JoystickCursorState.Action>>,
-  private val windowWidth: Float,
-  private val windowHeight: Float,
   private val onUpdatePosition: (JoystickCursorState) -> Unit,
   private val onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
   private val onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit,
@@ -85,14 +84,14 @@ private constructor(
       onEnableChanged(this)
     }
 
-  override var pointerX = windowWidth * 0.5f
+  override var pointerX = displayInfo.windowWidth * 0.5f
     private set
 
-  override var pointerY = windowHeight * 0.5f
+  override var pointerY = displayInfo.windowHeight * 0.5f
     private set
 
   private val defaultVelocityPixelsPerNanosecond =
-    calculateDefaultVelocityForWindow(windowWidth, windowHeight)
+    calculateDefaultVelocityForWindow(displayInfo.windowWidth, displayInfo.windowHeight)
 
   private var lastEventTimeNanoseconds: Long? = null
 
@@ -174,8 +173,8 @@ private constructor(
     val dX = xAxis.deflection * timeDelta * velocity
     val dY = yAxis.deflection * timeDelta * velocity
 
-    pointerX = (pointerX + dX).coerceIn(0f, windowWidth)
-    pointerY = (pointerY + dY).coerceIn(0f, windowHeight)
+    pointerX = (pointerX + dX).coerceIn(0f, displayInfo.windowWidth)
+    pointerY = (pointerY + dY).coerceIn(0f, displayInfo.windowHeight)
 
     onUpdatePosition(this)
   }
@@ -232,11 +231,10 @@ private constructor(
      */
     fun create(
       device: InputDevice,
+      displayInfo: DisplayInfo,
       handler: Handler,
       xAxis: Int,
       yAxis: Int,
-      windowWidth: Float,
-      windowHeight: Float,
       nanoClock: NanoClock,
       onUpdatePosition: (JoystickCursorState) -> Unit,
       onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
@@ -362,6 +360,7 @@ private constructor(
 
       return JoystickCursorStateImpl(
         device.id,
+        displayInfo,
         handler,
         xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
         yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
@@ -369,8 +368,6 @@ private constructor(
         toggleChord,
         primaryButton = ButtonMultiplexer(setOf(KeyEvent.KEYCODE_BUTTON_R2)),
         actionTriggers = actionTriggers,
-        windowWidth,
-        windowHeight,
         onUpdatePosition,
         onUpdatePrimaryButton,
         onAction,

@@ -1,9 +1,11 @@
 package work.bearbrains.joymouse.test
 
 import android.view.MotionEvent
+import work.bearbrains.joymouse.DisplayInfo
 import work.bearbrains.joymouse.JoystickCursorState
 
 class FakeJoystickCursorState(
+  override val displayInfo: DisplayInfo,
   override var isEnabled: Boolean = true,
   override var pointerX: Float = 0f,
   override var pointerY: Float = 0f,

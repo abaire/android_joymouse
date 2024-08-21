@@ -9,10 +9,12 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PorterDuff
+import android.hardware.display.DisplayManager
 import android.hardware.input.InputManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Display
 import android.view.InputDevice
 import android.view.InputDevice.SOURCE_JOYSTICK
 import android.view.KeyEvent
@@ -29,12 +31,12 @@ import work.bearbrains.joymouse.impl.NanoClockImpl
 import work.bearbrains.joymouse.ui.SwipeVisualization
 
 /** Handles conversion of joystick input events to motion eventsevents. */
-class MouseAccessibilityService : AccessibilityService(), InputManager.InputDeviceListener {
+class MouseAccessibilityService :
+  AccessibilityService(), InputManager.InputDeviceListener, DisplayManager.DisplayListener {
   private var joystickDeviceIdsToState = mutableMapOf<Int, JoystickCursorState>()
   private val handler = Handler(Looper.getMainLooper())
 
-  private var windowWidth = 0f
-  private var windowHeight = 0f
+  private val displayInfos = mutableMapOf<Int, DisplayInfo>()
 
   private lateinit var gestureUtil: GestureUtil
 
@@ -63,6 +65,9 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     }
 
   override fun onServiceConnected() {
+    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    displayManager.registerDisplayListener(this, handler)
+
     gestureUtil =
       GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
     val cursorIcon =
@@ -136,16 +141,36 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   override fun onUnbind(intent: Intent?): Boolean {
+    (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(this)
+
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
     inputManager.unregisterInputDeviceListener(this)
     return super.onUnbind(intent)
   }
 
+  override fun onDisplayAdded(displayId: Int) {
+    Log.d(TAG, "onDisplayAdded")
+    rebuildDisplays()
+  }
+
+  override fun onDisplayRemoved(displayId: Int) {
+    Log.d(TAG, "onDisplayRemoved")
+    rebuildDisplays()
+  }
+
+  override fun onDisplayChanged(displayId: Int) {
+    Log.d(TAG, "onDisplayChanged")
+    rebuildDisplays()
+  }
+
   override fun onConfigurationChanged(newConfig: Configuration) {
+    rebuildDisplays()
+    super.onConfigurationChanged(newConfig)
+  }
+
+  private fun rebuildDisplays() {
     measureDisplays()
     detectJoystickDevices(getSystemService(Context.INPUT_SERVICE) as InputManager)
-
-    super.onConfigurationChanged(newConfig)
   }
 
   override fun onKeyEvent(event: KeyEvent?): Boolean {
@@ -257,8 +282,8 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
   }
 
   private fun dispatchFling(state: JoystickCursorState, dX: Float, dY: Float) {
-    val endX = (state.pointerX + dX).coerceIn(0f, windowWidth)
-    val endY = (state.pointerY + dY).coerceIn(0f, windowHeight)
+    val endX = (state.pointerX + dX).coerceIn(0f, state.displayInfo.windowWidth)
+    val endY = (state.pointerY + dY).coerceIn(0f, state.displayInfo.windowHeight)
     if (
       (endX - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE &&
         (endY - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE
@@ -336,10 +361,50 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     Log.d(TAG, "Ignoring onInputDeviceChanged for device ID ${deviceId}")
   }
 
+  private fun getDisplayContext(): Context {
+    displayInfos.get(Display.DEFAULT_DISPLAY)?.let { info ->
+      return info.context
+    }
+
+    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    val defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
+    return createDisplayContext(defaultDisplay)
+  }
+
   private fun measureDisplays() {
-    val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-    windowWidth = windowManager.maximumWindowMetrics.bounds.width().toFloat()
-    windowHeight = windowManager.maximumWindowMetrics.bounds.height().toFloat()
+    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    val defaultDisplayContext = getDisplayContext()
+
+    val detectedDisplayIds = mutableSetOf<Int>()
+
+    for (display in displayManager.displays) {
+      val context =
+        if (display.displayId == Display.DEFAULT_DISPLAY) {
+          defaultDisplayContext
+        } else {
+          displayInfos.get(display.displayId)?.context
+            ?: defaultDisplayContext.createWindowContext(
+              display,
+              WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+              null
+            )
+        }
+
+      val windowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
+      val windowWidth = windowManager.maximumWindowMetrics.bounds.width().toFloat()
+      val windowHeight = windowManager.maximumWindowMetrics.bounds.height().toFloat()
+
+      displayInfos[display.displayId] =
+        DisplayInfo(display.displayId, context, windowWidth, windowHeight)
+      detectedDisplayIds.add(display.displayId)
+      Log.d(TAG, "Display ${display.displayId} ${windowWidth} x ${windowHeight}")
+    }
+
+    for (displayId in displayInfos.keys) {
+      if (!detectedDisplayIds.contains(displayId)) {
+        displayInfos.remove(displayId)
+      }
+    }
   }
 
   private fun destroyCursors() {
@@ -364,11 +429,10 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
     joystickDeviceIdsToState[device.id] =
       JoystickCursorStateImpl.create(
         device,
+        displayInfos[Display.DEFAULT_DISPLAY]!!,
         handler,
         X_AXIS,
         Y_AXIS,
-        windowWidth,
-        windowHeight,
         nanoClock = NanoClockImpl(),
         onUpdatePosition = ::updateCursorPosition,
         onUpdatePrimaryButton = ::onUpdatePrimaryButton,

@@ -1,4 +1,6 @@
+import android.content.Context
 import android.os.Handler
+import android.view.Display
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -12,6 +14,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.whenever
 import org.robolectric.annotation.Config
 import work.bearbrains.joymouse.ButtonAxis
+import work.bearbrains.joymouse.DisplayInfo
 import work.bearbrains.joymouse.JoystickCursorState
 import work.bearbrains.joymouse.JoystickCursorStateImpl
 import work.bearbrains.joymouse.test.FakeClock
@@ -20,6 +23,7 @@ import work.bearbrains.joymouse.test.FakeClock
 @Config(manifest = Config.NONE)
 internal class JoystickCursorStateImplTest {
 
+  private val context: Context = mock()
   private val handler: Handler = mock()
   private val motionEvent: MotionEvent = mock()
   private val inputDevice: InputDevice = mock()
@@ -361,6 +365,13 @@ internal class JoystickCursorStateImplTest {
   }
 
   private fun create(
+    displayInfo: DisplayInfo =
+      DisplayInfo(
+        Display.DEFAULT_DISPLAY,
+        context,
+        windowWidth = WINDOW_WIDTH,
+        windowHeight = WINDOW_HEIGHT,
+      ),
     onUpdatePosition: (JoystickCursorState) -> Unit = {},
     onUpdatePrimaryButton: (JoystickCursorState) -> Unit = {},
     onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit = { _, _ -> },
@@ -368,11 +379,10 @@ internal class JoystickCursorStateImplTest {
   ): JoystickCursorStateImpl {
     return JoystickCursorStateImpl.create(
       inputDevice,
+      displayInfo,
       handler,
       xAxis = MotionEvent.AXIS_Z,
       yAxis = MotionEvent.AXIS_RZ,
-      windowWidth = WINDOW_WIDTH,
-      windowHeight = WINDOW_HEIGHT,
       nanoClock = nanoClock,
       onUpdatePosition = onUpdatePosition,
       onUpdatePrimaryButton = onUpdatePrimaryButton,

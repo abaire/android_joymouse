@@ -36,6 +36,9 @@ interface JoystickCursorState {
   /** Indicates that the cursor speed should be set to "fast". */
   val isFastCursorEnabled: Boolean
 
+  /** The display on which this cursor is currently attached. */
+  val displayInfo: DisplayInfo
+
   /** Stops repeating events for this state. */
   fun cancelRepeater()
 
