@@ -15,8 +15,6 @@ class FakeJoystickCursorState(
 
   override fun update(event: MotionEvent) {}
 
-  override fun applyDeflection() {}
-
   override fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
     return false
   }

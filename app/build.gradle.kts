@@ -62,12 +62,14 @@ dependencies {
   testImplementation(libs.junit)
   testImplementation(libs.robolectric)
   testImplementation(libs.google.truth)
+  testImplementation(libs.mockito)
   testImplementation(project(":app"))
   testImplementation(project(":shared-test"))
 
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)
   androidTestImplementation(libs.google.truth)
+  androidTestImplementation(project(":app"))
   androidTestImplementation(project(":shared-test"))
 
   // Jetpack Compose
@@ -76,6 +78,4 @@ dependencies {
   implementation(libs.androidx.ui)
 
   implementation(libs.androidx.material3)
-  androidTestImplementation(project(":app"))
-  androidTestImplementation(project(":app"))
 }

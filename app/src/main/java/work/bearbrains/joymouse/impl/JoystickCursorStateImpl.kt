@@ -5,6 +5,7 @@ import android.view.InputDevice
 import android.view.InputDevice.MotionRange
 import android.view.KeyEvent
 import android.view.MotionEvent
+import androidx.annotation.VisibleForTesting
 import kotlin.math.absoluteValue
 
 /** Concrete implementation of [JoystickCursorState]. */
@@ -25,6 +26,7 @@ private constructor(
   private val onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
   private val onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit,
   private val onEnableChanged: (JoystickCursorState) -> Unit,
+  private val nanoClock: NanoClock,
 ) : JoystickCursorState {
 
   private val eventRepeater =
@@ -47,7 +49,8 @@ private constructor(
       }
     }
 
-  private val buttonStates =
+  @VisibleForTesting
+  internal val buttonStates =
     mutableMapOf(
       KeyEvent.KEYCODE_BUTTON_A to false,
       KeyEvent.KEYCODE_BUTTON_B to false,
@@ -91,7 +94,7 @@ private constructor(
   private val defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(windowWidth, windowHeight)
 
-  private var lastEventTimeMilliseconds: Long? = null
+  private var lastEventTimeNanoseconds: Long? = null
 
   override val isPrimaryButtonPressed: Boolean
     get() = primaryButton.isPressed
@@ -149,9 +152,11 @@ private constructor(
     }
   }
 
-  override fun applyDeflection() {
-    val timeDelta = lastEventTimeMilliseconds?.let { (System.nanoTime() - it) } ?: 0L
-    lastEventTimeMilliseconds = System.nanoTime()
+  /** Applies the last calculated deflection values. */
+  private fun applyDeflection() {
+    val now = nanoClock.nanoTime()
+    val timeDelta = lastEventTimeNanoseconds?.let { now - it } ?: 0L
+    lastEventTimeNanoseconds = now
 
     // If timeDelta is very large there was probably an intentional gap in user input and this is
     // the start of a new movement.
@@ -232,6 +237,7 @@ private constructor(
       yAxis: Int,
       windowWidth: Float,
       windowHeight: Float,
+      nanoClock: NanoClock,
       onUpdatePosition: (JoystickCursorState) -> Unit,
       onUpdatePrimaryButton: (JoystickCursorState) -> Unit,
       onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit,
@@ -369,6 +375,7 @@ private constructor(
         onUpdatePrimaryButton,
         onAction,
         onEnableChanged,
+        nanoClock,
       )
     }
 
@@ -389,7 +396,7 @@ private constructor(
 }
 
 /** Encapsulates a [MotionEvent] axis and associated [MotionRange]. */
-private data class RangedAxis(val axis: Int, private val range: MotionRange) {
+internal data class RangedAxis(val axis: Int, private val range: MotionRange) {
   /** The modified deflection of this axis, between -1 and 1. */
   var deflection = 0f
     private set
@@ -416,7 +423,7 @@ private data class RangedAxis(val axis: Int, private val range: MotionRange) {
  * Encapsulates a [MotionEvent] axis and associated [MotionRange] that should be mapped to binary
  * [KeyEvent] keycodes.
  */
-private data class ButtonAxis(
+internal data class ButtonAxis(
   private val axis: RangedAxis,
   val positiveKeycode: Int,
   val negativeKeycode: Int?,
@@ -486,13 +493,14 @@ private data class ButtonAxis(
     return ret
   }
 
-  private companion object {
+  internal companion object {
     private const val TAG = "ButtonAxis"
-    private const val TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD = 0.8f
+
+    @VisibleForTesting internal const val TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD = 0.8f
   }
 }
 
-private interface VirtualButton {
+internal interface VirtualButton {
   /** Whether the virtual button is considered pressed. */
   val isPressed: Boolean
 
@@ -517,7 +525,7 @@ private interface VirtualButton {
  * Defines a set of buttons that will be used to control a virtual button state (if all physical
  * buttons are pressed, the virtual button is considered pressed).
  */
-private data class ButtonChord(val keycodes: Set<Int>, override val exclusionKeycodes: Set<Int>) :
+internal data class ButtonChord(val keycodes: Set<Int>, override val exclusionKeycodes: Set<Int>) :
   VirtualButton {
   override var isPressed = false
     private set
@@ -542,7 +550,7 @@ private data class ButtonChord(val keycodes: Set<Int>, override val exclusionKey
  * Defines a set of buttons that will be used to control a virtual button state (if any given
  * physical button is pressed, the virtual button is considered pressed).
  */
-private data class ButtonMultiplexer(private val keycodes: Set<Int>) : VirtualButton {
+internal data class ButtonMultiplexer(private val keycodes: Set<Int>) : VirtualButton {
   override var isPressed = false
     private set
 

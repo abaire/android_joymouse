@@ -44,9 +44,6 @@ interface JoystickCursorState {
    */
   fun update(event: MotionEvent)
 
-  /** Applies the last calculated deflection values. */
-  fun applyDeflection()
-
   /** Processes a press/release event. Returns true if the event was consumed. */
   fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean
 }

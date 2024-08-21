@@ -7,11 +7,13 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.test.FakeClock
 import work.bearbrains.joymouse.test.FakeJoystickCursorState
 
 @RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE)
 internal class GestureBuilderImplTest {
   private val context: Context = ApplicationProvider.getApplicationContext()
   private val gestureUtil =

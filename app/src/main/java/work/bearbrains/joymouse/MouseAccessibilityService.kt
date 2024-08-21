@@ -369,6 +369,7 @@ class MouseAccessibilityService : AccessibilityService(), InputManager.InputDevi
         Y_AXIS,
         windowWidth,
         windowHeight,
+        nanoClock = NanoClockImpl(),
         onUpdatePosition = ::updateCursorPosition,
         onUpdatePrimaryButton = ::onUpdatePrimaryButton,
         onAction = ::onAction,
