@@ -390,11 +390,8 @@ private constructor(
 
 /** Encapsulates a [MotionEvent] axis and associated [MotionRange]. */
 private data class RangedAxis(val axis: Int, private val range: MotionRange) {
+  /** The modified deflection of this axis, between -1 and 1. */
   var deflection = 0f
-    private set
-
-  // TODO: REMOVEME
-  var rawDeflection = 0f
     private set
 
   /**
@@ -402,7 +399,7 @@ private data class RangedAxis(val axis: Int, private val range: MotionRange) {
    * modified.
    */
   fun update(event: MotionEvent): Boolean {
-    rawDeflection = event.getAxisValue(axis)
+    val rawDeflection = event.getAxisValue(axis)
     val newValue = if (rawDeflection.absoluteValue < range.flat) 0f else rawDeflection
 
     if ((newValue - deflection).absoluteValue <= range.fuzz) {

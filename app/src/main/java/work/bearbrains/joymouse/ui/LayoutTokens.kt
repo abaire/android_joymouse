@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.ui
 
 import androidx.compose.ui.unit.dp
 

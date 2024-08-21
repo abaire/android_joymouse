@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.ui
 
 import android.accessibilityservice.AccessibilityService.WINDOW_SERVICE
 import android.accessibilityservice.GestureDescription

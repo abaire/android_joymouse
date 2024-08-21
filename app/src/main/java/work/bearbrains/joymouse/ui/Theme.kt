@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

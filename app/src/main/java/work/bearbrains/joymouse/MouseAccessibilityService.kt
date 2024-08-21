@@ -26,6 +26,7 @@ import kotlin.math.absoluteValue
 import work.bearbrains.joymouse.impl.CursorViewImpl
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.impl.NanoClockImpl
+import work.bearbrains.joymouse.ui.SwipeVisualization
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService : AccessibilityService(), InputManager.InputDeviceListener {

@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import work.bearbrains.joymouse.ui.JoyMouseTheme
+import work.bearbrains.joymouse.ui.MainScreen
 
 class MainActivity : ComponentActivity() {
 
