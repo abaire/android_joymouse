@@ -40,9 +40,12 @@ class MouseAccessibilityService :
 
   private lateinit var gestureUtil: GestureUtil
 
+  // TODO: Associate with a joystick state to allow multiple controllers.
   var cursorView: CursorView? = null
   val cursorDisplayTimeoutMilliseconds = 1500L
 
+  // TODO: activeGestureBuilder should be associated with a joystick state
+  // This would allow multiple cursors to be controlled independently.
   private var activeGestureBuilder: GestureBuilder? = null
 
   private val cursorHider =
@@ -64,64 +67,15 @@ class MouseAccessibilityService :
       }
     }
 
+  private lateinit var cursorIcon: ImageView
+
   override fun onServiceConnected() {
+    cursorIcon = createCursorIcon()
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
 
     gestureUtil =
       GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
-    val cursorIcon =
-      ImageView(this).apply {
-        val drawable =
-          ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
-        setImageDrawable(drawable)
-
-        fitsSystemWindows = false
-
-        imageTintMode = PorterDuff.Mode.MULTIPLY
-        imageTintList =
-          ColorStateList(
-            arrayOf(
-              // STATE_RELEASED
-              intArrayOf(
-                android.R.attr.state_enabled,
-                -android.R.attr.state_pressed,
-                -android.R.attr.state_selected
-              ),
-              // STATE_PRESSED_TAP
-              intArrayOf(
-                -android.R.attr.state_enabled,
-                -android.R.attr.state_pressed,
-                -android.R.attr.state_selected
-              ),
-              // STATE_PRESSED_LONG_TOUCH
-              intArrayOf(
-                android.R.attr.state_enabled,
-                android.R.attr.state_pressed,
-                -android.R.attr.state_selected
-              ),
-              // STATE_PRESSED_SLOW_DRAG
-              intArrayOf(
-                -android.R.attr.state_enabled,
-                android.R.attr.state_pressed,
-                -android.R.attr.state_selected
-              ),
-              // STATE_PRESSED_FLING
-              intArrayOf(
-                android.R.attr.state_enabled,
-                -android.R.attr.state_pressed,
-                android.R.attr.state_selected
-              ),
-            ),
-            intArrayOf(
-              Color.WHITE,
-              Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
-              Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
-              Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
-              Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
-            ),
-          )
-      }
 
     cursorView = CursorViewImpl(cursorIcon, getSystemService(WINDOW_SERVICE) as WindowManager)
 
@@ -243,6 +197,7 @@ class MouseAccessibilityService :
     numRetries: Int = 0,
     onCompleted: ((GestureDescription) -> Unit)? = null,
   ): Boolean {
+    Log.d(TAG, "Dispatching gesture ${gesture} to display ${gesture.displayId}")
     return dispatchGesture(
       gesture,
       object : GestureResultCallback() {
@@ -294,6 +249,7 @@ class MouseAccessibilityService :
 
     val builder =
       GestureDescription.Builder().apply {
+        setDisplayId(state.displayInfo.displayId)
         addStroke(
           GestureDescription.StrokeDescription(
             Path().apply {
@@ -308,15 +264,73 @@ class MouseAccessibilityService :
       }
     val wasDispatched =
       dispatchGesture(builder.build()) { gestureDescription ->
-        SwipeVisualization(gestureDescription, this)
+        SwipeVisualization(gestureDescription, state.displayInfo.context)
       }
     if (!wasDispatched) {
       Log.e(TAG, "dispatchFling failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
     }
   }
 
+  private fun cycleDisplay(state: JoystickCursorState, forward: Boolean) {
+    val currentDisplayId = state.displayInfo.displayId
+
+    val displayIds = displayInfos.keys.sorted()
+    val currentIndex = displayIds.indexOf(currentDisplayId)
+    var newIndex =
+      currentIndex +
+        if (forward) {
+          1
+        } else {
+          -1
+        }
+    if (newIndex < 0) {
+      newIndex = displayIds.size - 1
+    } else if (newIndex >= displayIds.size) {
+      newIndex = 0
+    }
+
+    val newDisplayId = displayIds[newIndex]
+
+    if (newDisplayId == currentDisplayId) {
+      return
+    }
+
+    val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
+    val device = inputManager.getInputDevice(state.deviceId)
+    if (device == null) {
+      Log.e(
+        TAG,
+        "Unexpectedly failed to retrieve device ${state.deviceId} associated with existing state"
+      )
+      return
+    }
+
+    val newDisplayInfo = displayInfos[newDisplayId]
+    if (newDisplayInfo == null) {
+      Log.e(TAG, "Unexpectedly lost displayInfo $newDisplayId")
+      return
+    }
+
+    destroyCursorState(state)
+    cursorView?.hideCursor()
+    cursorView =
+      CursorViewImpl(
+        cursorIcon,
+        newDisplayInfo.context.getSystemService(WINDOW_SERVICE) as WindowManager
+      )
+    activeGestureBuilder = null
+    val newState = addJoystickDevice(device, newDisplayInfo)
+    updateCursorPosition(newState)
+  }
+
   private fun onAction(state: JoystickCursorState, action: JoystickCursorState.Action) {
     when (action) {
+      JoystickCursorState.Action.CYCLE_DISPLAY_FORWARD -> {
+        cycleDisplay(state, true)
+      }
+      JoystickCursorState.Action.CYCLE_DISPLAY_BACKWARD -> {
+        cycleDisplay(state, false)
+      }
       JoystickCursorState.Action.SWIPE_UP -> {
         dispatchFling(state, 0f, -SWIPE_DISTANCE)
       }
@@ -407,8 +421,12 @@ class MouseAccessibilityService :
     }
   }
 
+  private fun destroyCursorState(state: JoystickCursorState) {
+    state.cancelRepeater()
+  }
+
   private fun destroyCursors() {
-    joystickDeviceIdsToState.forEach { (_, state) -> state.cancelRepeater() }
+    joystickDeviceIdsToState.forEach { (_, state) -> destroyCursorState(state) }
     joystickDeviceIdsToState.clear()
   }
 
@@ -425,14 +443,17 @@ class MouseAccessibilityService :
     }
   }
 
-  private fun addJoystickDevice(device: InputDevice) {
-    joystickDeviceIdsToState[device.id] =
+  private fun addJoystickDevice(
+    device: InputDevice,
+    displayInfo: DisplayInfo? = null
+  ): JoystickCursorState {
+    val newDevice =
       JoystickCursorStateImpl.create(
-        device,
-        displayInfos[Display.DEFAULT_DISPLAY]!!,
-        handler,
-        X_AXIS,
-        Y_AXIS,
+        device = device,
+        displayInfo = displayInfo ?: displayInfos[Display.DEFAULT_DISPLAY]!!,
+        handler = handler,
+        xAxis = X_AXIS,
+        yAxis = Y_AXIS,
         nanoClock = NanoClockImpl(),
         onUpdatePosition = ::updateCursorPosition,
         onUpdatePrimaryButton = ::onUpdatePrimaryButton,
@@ -445,6 +466,9 @@ class MouseAccessibilityService :
           updateCursorPosition(state)
         }
       }
+    joystickDeviceIdsToState[device.id] = newDevice
+
+    return newDevice
   }
 
   private fun JoystickCursorState.Action.toGlobalAction(): Int? {
@@ -460,6 +484,59 @@ class MouseAccessibilityService :
       else -> null
     }
   }
+
+  private fun createCursorIcon(): ImageView =
+    ImageView(this).apply {
+      val drawable =
+        ContextCompat.getDrawable(this@MouseAccessibilityService, R.drawable.mouse_cursor)
+      setImageDrawable(drawable)
+
+      fitsSystemWindows = false
+
+      imageTintMode = PorterDuff.Mode.MULTIPLY
+      imageTintList =
+        ColorStateList(
+          arrayOf(
+            // STATE_RELEASED
+            intArrayOf(
+              android.R.attr.state_enabled,
+              -android.R.attr.state_pressed,
+              -android.R.attr.state_selected
+            ),
+            // STATE_PRESSED_TAP
+            intArrayOf(
+              -android.R.attr.state_enabled,
+              -android.R.attr.state_pressed,
+              -android.R.attr.state_selected
+            ),
+            // STATE_PRESSED_LONG_TOUCH
+            intArrayOf(
+              android.R.attr.state_enabled,
+              android.R.attr.state_pressed,
+              -android.R.attr.state_selected
+            ),
+            // STATE_PRESSED_SLOW_DRAG
+            intArrayOf(
+              -android.R.attr.state_enabled,
+              android.R.attr.state_pressed,
+              -android.R.attr.state_selected
+            ),
+            // STATE_PRESSED_FLING
+            intArrayOf(
+              android.R.attr.state_enabled,
+              -android.R.attr.state_pressed,
+              android.R.attr.state_selected
+            ),
+          ),
+          intArrayOf(
+            Color.WHITE,
+            Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
+            Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
+            Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
+            Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
+          ),
+        )
+    }
 
   private companion object {
     const val TAG = "MouseAccessibilityService"

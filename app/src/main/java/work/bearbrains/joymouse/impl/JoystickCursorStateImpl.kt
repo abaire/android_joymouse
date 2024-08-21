@@ -11,8 +11,7 @@ import kotlin.math.absoluteValue
 /** Concrete implementation of [JoystickCursorState]. */
 class JoystickCursorStateImpl
 private constructor(
-  /** The ID of the physical device that this repeater is associated with. */
-  val deviceId: Int,
+  override val deviceId: Int,
   override val displayInfo: DisplayInfo,
   private val handler: Handler,
   private val xAxis: RangedAxis,
@@ -291,6 +290,20 @@ private constructor(
 
       val actionTriggers =
         listOf(
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_L1),
+              setOf(KeyEvent.KEYCODE_BUTTON_L1),
+            ),
+            JoystickCursorState.Action.CYCLE_DISPLAY_BACKWARD,
+          ),
+          Pair(
+            ButtonChord(
+              setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R1),
+              setOf(KeyEvent.KEYCODE_BUTTON_R1),
+            ),
+            JoystickCursorState.Action.CYCLE_DISPLAY_FORWARD,
+          ),
           Pair(
             ButtonChord(
               setOf(KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_DPAD_UP),

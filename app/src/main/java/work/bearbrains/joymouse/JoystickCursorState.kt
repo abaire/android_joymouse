@@ -19,7 +19,12 @@ interface JoystickCursorState {
     SWIPE_DOWN,
     SWIPE_LEFT,
     SWIPE_RIGHT,
+    CYCLE_DISPLAY_FORWARD,
+    CYCLE_DISPLAY_BACKWARD,
   }
+
+  /** The ID of the physical device that this repeater is associated with. */
+  val deviceId: Int
 
   /** Whether or not this virtual cursor is enabled or has been toggled off via a button chord. */
   val isEnabled: Boolean

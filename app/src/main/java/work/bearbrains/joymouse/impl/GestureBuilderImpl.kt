@@ -22,7 +22,8 @@ internal class GestureBuilderImpl(
   private var lastEventX = initialX
   private var lastEventY = initialY
 
-  private val builder = GestureDescription.Builder()
+  private val builder =
+    GestureDescription.Builder().setDisplayId(initialState.displayInfo.displayId)
 
   private var _action = GestureBuilder.Action.TOUCH
   /** The logical action represented by this gesture. */

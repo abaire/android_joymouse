@@ -66,6 +66,12 @@ fun MainScreen(
       item { Text(text = stringResource(id = R.string.operating_instructions_action_start)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_activate)) }
 
+      item {
+        Text(text = stringResource(id = R.string.operating_instructions_action_display_backward))
+      }
+      item {
+        Text(text = stringResource(id = R.string.operating_instructions_action_display_forward))
+      }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_up)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_down)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_left)) }

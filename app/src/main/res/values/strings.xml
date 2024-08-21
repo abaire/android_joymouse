@@ -14,6 +14,8 @@
     <string name="operating_instructions_action_start">• `START`: `START``</string>
     <string name="operating_instructions_action_activate">• `A`: `ACTIVATE`</string>
 
+    <string name="operating_instructions_action_display_backward">• `LEFT SHOULDER` while holding left trigger: switch to previous display device</string>
+    <string name="operating_instructions_action_display_forward">• `RIGHT SHOULDER` while holding left trigger: switch to next display device</string>
     <string name="operating_instructions_action_swipe_up">• `DPAD-UP` while holding left trigger: `fling up`</string>
     <string name="operating_instructions_action_swipe_down">• `DPAD-DOWN` while holding left trigger: `fling down`</string>
     <string name="operating_instructions_action_swipe_left">• `DPAD-LEFT` while holding left trigger: `fling left`</string>
