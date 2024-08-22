@@ -22,6 +22,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import java.io.Closeable
 import kotlin.math.absoluteValue
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.impl.NanoClockImpl
@@ -43,6 +44,8 @@ class MouseAccessibilityService :
   private val handler = Handler(Looper.getMainLooper())
 
   private val displayInfos = mutableMapOf<Int, DisplayInfo>()
+
+  private val closeableOverlays = mutableSetOf<Closeable>()
 
   private lateinit var gestureUtil: GestureUtil
 
@@ -79,6 +82,8 @@ class MouseAccessibilityService :
 
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
     inputManager.unregisterInputDeviceListener(this)
+
+    destroyCursors()
     return super.onUnbind(intent)
   }
 
@@ -266,8 +271,8 @@ class MouseAccessibilityService :
       }
     val wasDispatched =
       dispatchGesture(builder.build()) { gestureDescription ->
-        val visualization =
-          SwipeVisualization(state.displayInfo, gestureDescription, state.pointerX, state.pointerY)
+        val visualization = SwipeVisualization(state.displayInfo, gestureDescription)
+        closeableOverlays.add(visualization)
         attachAccessibilityOverlayToDisplay(
           state.displayInfo.displayId,
           visualization.surfaceControl
@@ -276,7 +281,8 @@ class MouseAccessibilityService :
         handler.postDelayed(
           {
             SurfaceControl.Transaction().reparent(visualization.surfaceControl, null).apply()
-            visualization.destroy()
+            visualization.close()
+            closeableOverlays.remove(visualization)
           },
           500L
         )
@@ -489,6 +495,8 @@ class MouseAccessibilityService :
   private fun destroyCursors() {
     joystickDeviceIdsToState.forEach { (_, state) -> destroyJoystickCursorState(state) }
     joystickDeviceIdsToState.clear()
+
+    displayIdToCursorDisplayState.forEach { (_, state) -> state.hide() }
   }
 
   private fun detectJoystickDevices(inputManager: InputManager) {
@@ -521,8 +529,7 @@ class MouseAccessibilityService :
         onAction = ::onAction,
       ) { state ->
         if (!state.isEnabled) {
-          val displayInfo = state.displayInfo
-          val cursorState = displayIdToCursorDisplayState.get(displayInfo.displayId)
+          val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
           if (cursorState == null) {
             Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
           } else {

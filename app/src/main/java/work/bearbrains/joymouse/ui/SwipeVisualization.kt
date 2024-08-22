@@ -12,6 +12,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.view.Surface
 import android.view.SurfaceControl
+import java.io.Closeable
 import kotlin.math.atan2
 import kotlin.math.ceil
 import work.bearbrains.joymouse.DisplayInfo
@@ -20,9 +21,7 @@ import work.bearbrains.joymouse.DisplayInfo
 class SwipeVisualization(
   val displayInfo: DisplayInfo,
   gestureDescription: GestureDescription,
-  x: Float,
-  y: Float,
-) {
+) : Closeable {
   /** The [SurfaceControl] into which the visualization will be rendered. */
   val surfaceControl: SurfaceControl
 
@@ -54,7 +53,7 @@ class SwipeVisualization(
     width = ceil(totalBounds.width()).toInt()
     height = ceil(totalBounds.height()).toInt()
 
-    surfaceControl = buildSurfaceControl(gestureDescription, width, height)
+    surfaceControl = buildSurfaceControl(width, height)
     val surface =
       buildSurface(
         surfaceControl,
@@ -75,7 +74,8 @@ class SwipeVisualization(
   }
 
   /** Releases the resources used by this visualization. */
-  fun destroy() {
+  override fun close() {
+    SurfaceControl.Transaction().reparent(surfaceControl, null).apply()
     surfaceControl.release()
   }
 
@@ -101,11 +101,7 @@ class SwipeVisualization(
       return totalBounds
     }
 
-    fun buildSurfaceControl(
-      gestureDescription: GestureDescription,
-      width: Int,
-      height: Int
-    ): SurfaceControl {
+    fun buildSurfaceControl(width: Int, height: Int): SurfaceControl {
       return SurfaceControl.Builder()
         .apply {
           setName("SwipeVisualizationAccessibilityOverlay")

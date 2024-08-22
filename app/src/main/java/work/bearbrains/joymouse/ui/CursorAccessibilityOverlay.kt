@@ -12,6 +12,7 @@ import android.view.SurfaceControl
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
+import java.io.Closeable
 import work.bearbrains.joymouse.DisplayInfo
 import work.bearbrains.joymouse.R
 
@@ -21,11 +22,16 @@ import work.bearbrains.joymouse.R
  * Samsung DEX does not appear to render TYPE_ACCESSIBILITY_OVERLAY views, so a workaround via
  * [attachAccessibilityOverlayToDisplay] is provided through this class.
  */
-class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) {
+class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
   private var lastX = 0f
   private var lastY = 0f
 
   private var activeSurface: Surface? = null
+
+  override fun close() {
+    activeSurface?.release()
+    activeSurface = null
+  }
 
   /** The tint that should be applied to the cursor image. */
   @ColorInt
