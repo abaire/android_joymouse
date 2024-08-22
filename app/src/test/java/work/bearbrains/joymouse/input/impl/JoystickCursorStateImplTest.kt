@@ -1,3 +1,5 @@
+package work.bearbrains.joymouse.input.impl
+
 import android.content.Context
 import android.os.Handler
 import android.view.Display
@@ -15,8 +17,9 @@ import org.mockito.kotlin.whenever
 import org.robolectric.annotation.Config
 import work.bearbrains.joymouse.ButtonAxis
 import work.bearbrains.joymouse.DisplayInfo
-import work.bearbrains.joymouse.JoystickCursorState
 import work.bearbrains.joymouse.JoystickCursorStateImpl
+import work.bearbrains.joymouse.input.JoystickAction
+import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.test.FakeClock
 
 @RunWith(MockitoJUnitRunner::class)
@@ -39,20 +42,39 @@ internal class JoystickCursorStateImplTest {
   }
 
   @Test
-  fun update_withLeftTrigger_setsFastCursorEnabled() {
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+  fun update_withLeftBumper_andNoShift_setsFastCursorEnabled() {
     val sut = create()
 
-    sut.update(motionEvent)
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
 
     assertThat(sut.isFastCursorEnabled).isTrue()
+  }
+
+  @Test
+  fun update_withLeftBumperPressedAndReleased_andNoShift_clearsFastCursorEnabled() {
+    val sut = create()
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+
+    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_L1)
+
+    assertThat(sut.isFastCursorEnabled).isFalse()
+  }
+
+  @Test
+  fun update_withLeftBumper_andShift_doesNotSetsFastCursorEnabled() {
+    val sut = create()
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+
+    assertThat(sut.isFastCursorEnabled).isFalse()
   }
 
   @Test
   fun update_withNegativeHatX_doesNotEmitAction() {
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_HAT_X)).thenReturn(-1f)
     var receivedState: JoystickCursorState? = null
-    var receivedAction: JoystickCursorState.Action? = null
+    var receivedAction: JoystickAction? = null
     val sut =
       create(
         onAction = { state, action ->
@@ -70,7 +92,7 @@ internal class JoystickCursorStateImplTest {
   @Test
   fun update_withNegativeHatX_followedByIncreasePastThreshold_emitsAction() {
     var receivedState: JoystickCursorState? = null
-    var receivedAction: JoystickCursorState.Action? = null
+    var receivedAction: JoystickAction? = null
     val sut =
       create(
         onAction = { state, action ->
@@ -85,13 +107,13 @@ internal class JoystickCursorStateImplTest {
     sut.update(motionEvent)
 
     assertThat(receivedState).isEqualTo(sut)
-    assertThat(receivedAction).isEqualTo(JoystickCursorState.Action.DPAD_LEFT)
+    assertThat(receivedAction).isEqualTo(JoystickAction.DPAD_LEFT)
   }
 
   @Test
   fun update_withPositiveHatX_followedByDecreasePastThreshold_emitsAction() {
     var receivedState: JoystickCursorState? = null
-    var receivedAction: JoystickCursorState.Action? = null
+    var receivedAction: JoystickAction? = null
     val sut =
       create(
         onAction = { state, action ->
@@ -107,7 +129,7 @@ internal class JoystickCursorStateImplTest {
     sut.update(motionEvent)
 
     assertThat(receivedState).isEqualTo(sut)
-    assertThat(receivedAction).isEqualTo(JoystickCursorState.Action.DPAD_RIGHT)
+    assertThat(receivedAction).isEqualTo(JoystickAction.DPAD_RIGHT)
   }
 
   @Test
@@ -124,51 +146,43 @@ internal class JoystickCursorStateImplTest {
   }
 
   @Test
+  fun releasingToggleChord_remainsDisabled() {
+    val sut = create()
+    fun changeChord(isPressed: Boolean) {
+      val axisValue = if (isPressed) 1f else 0f
+
+      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(axisValue)
+      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(axisValue)
+      sut.update(motionEvent)
+      sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_L1)
+      sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_R1)
+    }
+    changeChord(true)
+
+    changeChord(false)
+
+    assertThat(sut.isEnabled).isFalse()
+  }
+
+  @Test
   fun sendingToggleChord_aSecondTime_resetsIsEnabled() {
     val sut = create()
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
-    sut.update(motionEvent)
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_R1)
+    fun changeChord(isPressed: Boolean) {
+      println("Setting chord ${isPressed}")
+      val axisValue = if (isPressed) 1f else 0f
 
-    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_L1)
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(axisValue)
+      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(axisValue)
+      sut.update(motionEvent)
+      sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_L1)
+      sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_R1)
+    }
+    changeChord(true)
+    changeChord(false)
+
+    changeChord(true)
 
     assertThat(sut.isEnabled).isTrue()
-  }
-
-  @Test
-  fun buttonAxis_withLatchUntilZero_isPressed_whenRaisingAboveThreshold() {
-    val sut = create()
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER))
-      .thenReturn(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD)
-    sut.update(motionEvent)
-    assertThat(sut.buttonStates[KeyEvent.KEYCODE_BUTTON_L2]).isTrue()
-  }
-
-  @Test
-  fun buttonAxis_withLatchUntilZero_remainsPressed_whenFallingBelowPressThreshold() {
-    val sut = create()
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
-    sut.update(motionEvent)
-
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(AXIS_DEADZONE)
-    sut.update(motionEvent)
-
-    assertThat(sut.buttonStates[KeyEvent.KEYCODE_BUTTON_L2]).isTrue()
-  }
-
-  @Test
-  fun buttonAxis_withLatchUntilZero_isReleased_whenReturningToDeadzone() {
-    val sut = create()
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
-    sut.update(motionEvent)
-
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(WITHIN_AXIS_DEADZONE)
-    sut.update(motionEvent)
-
-    assertThat(sut.buttonStates[KeyEvent.KEYCODE_BUTTON_L2]).isFalse()
   }
 
   @Test
@@ -176,7 +190,7 @@ internal class JoystickCursorStateImplTest {
     // L2 + UP should emit SWIPE_UP, but should not emit DPAD_UP.
     var timesCalled = 0
     var receivedState: JoystickCursorState? = null
-    var receivedAction: JoystickCursorState.Action? = null
+    var receivedAction: JoystickAction? = null
     val sut =
       create(
         onAction = { state, action ->
@@ -194,7 +208,7 @@ internal class JoystickCursorStateImplTest {
 
     assertThat(timesCalled).isEqualTo(1)
     assertThat(receivedState).isEqualTo(sut)
-    assertThat(receivedAction).isEqualTo(JoystickCursorState.Action.SWIPE_UP)
+    assertThat(receivedAction).isEqualTo(JoystickAction.SWIPE_UP)
   }
 
   @Test
@@ -202,12 +216,12 @@ internal class JoystickCursorStateImplTest {
     var timesCalled = 0
     var receivedState: JoystickCursorState? = null
     val sut =
-      create(
-        onUpdatePrimaryButton = { state ->
+      create() { state, action ->
+        if (action == JoystickAction.PRIMARY_PRESS) {
           timesCalled += 1
           receivedState = state
         }
-      )
+      }
 
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     sut.update(motionEvent)
@@ -222,12 +236,12 @@ internal class JoystickCursorStateImplTest {
     var timesCalled = 0
     var receivedState: JoystickCursorState? = null
     val sut =
-      create(
-        onUpdatePrimaryButton = { state ->
+      create() { state, action ->
+        if (action == JoystickAction.PRIMARY_RELEASE) {
           timesCalled += 1
           receivedState = state
         }
-      )
+      }
 
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     sut.update(motionEvent)
@@ -235,7 +249,7 @@ internal class JoystickCursorStateImplTest {
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(WITHIN_AXIS_DEADZONE)
     sut.update(motionEvent)
 
-    assertThat(timesCalled).isEqualTo(2)
+    assertThat(timesCalled).isEqualTo(1)
     assertThat(receivedState).isEqualTo(sut)
     assertThat(receivedState!!.isPrimaryButtonPressed).isFalse()
   }
@@ -276,7 +290,7 @@ internal class JoystickCursorStateImplTest {
         }
       )
 
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
     sut.update(motionEvent)
     nanoClock.advanceMilliseconds(1)
@@ -373,9 +387,7 @@ internal class JoystickCursorStateImplTest {
         windowHeight = WINDOW_HEIGHT,
       ),
     onUpdatePosition: (JoystickCursorState) -> Unit = {},
-    onUpdatePrimaryButton: (JoystickCursorState) -> Unit = {},
-    onAction: (JoystickCursorState, JoystickCursorState.Action) -> Unit = { _, _ -> },
-    onEnableChanged: (JoystickCursorState) -> Unit = {},
+    onAction: (JoystickCursorState, JoystickAction) -> Unit = { _, _ -> },
   ): JoystickCursorStateImpl {
     return JoystickCursorStateImpl.create(
       inputDevice,
@@ -384,10 +396,9 @@ internal class JoystickCursorStateImplTest {
       xAxis = MotionEvent.AXIS_Z,
       yAxis = MotionEvent.AXIS_RZ,
       nanoClock = nanoClock,
+      JoystickButtonProcessorFactoryImpl,
       onUpdatePosition = onUpdatePosition,
-      onUpdatePrimaryButton = onUpdatePrimaryButton,
       onAction = onAction,
-      onEnableChanged = onEnableChanged,
     ) as JoystickCursorStateImpl
   }
 

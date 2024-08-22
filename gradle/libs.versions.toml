@@ -19,6 +19,8 @@ coreKtxVersion = "1.6.1"
 
 mockitoVersion = "5.4.0"
 
+javaxInjectVersion = "1"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -38,6 +40,8 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 google-truth = {group = "com.google.truth", name = "truth", version.ref = "googleTruthVersion"}
 core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
 mockito = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoVersion" }
+
+javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInjectVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

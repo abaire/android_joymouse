@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input
 
 import android.accessibilityservice.GestureDescription
 import android.view.ViewConfiguration
@@ -33,7 +33,7 @@ class GestureUtil(
   fun dragTimeBetween(startX: Float, startY: Float, endX: Float, endY: Float): Long {
     val dist = distance(startX, startY, endX, endY)
     val minFlingTime = (dist * minFlingVelocityMillisecondsPerPixel).toLong()
-    return max(minFlingTime - 10, 1)
+    return max(minFlingTime - 10L, 1L)
   }
 
   /**

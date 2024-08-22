@@ -1,19 +1,29 @@
-package work.bearbrains.joymouse.impl
+package work.bearbrains.joymouse.input.impl
 
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.util.Log
-import work.bearbrains.joymouse.GestureBuilder
-import work.bearbrains.joymouse.GestureUtil
-import work.bearbrains.joymouse.JoystickCursorState
+import javax.inject.Provider
 import work.bearbrains.joymouse.NanoClock
+import work.bearbrains.joymouse.input.GestureBuilder
+import work.bearbrains.joymouse.input.GestureUtil
+import work.bearbrains.joymouse.input.JoystickCursorState
 
 /** Provides functionality to compile a gesture over the course of some number of events. */
 internal class GestureBuilderImpl(
   initialState: JoystickCursorState,
   private val gestureUtil: GestureUtil,
   private val clock: NanoClock,
+  gestureDescriptionBuilderProvider: Provider<GestureDescription.Builder>,
+  /**
+   * Indicates that gestures should be converted from drags to flings based on how far the cursor
+   * has moved from the point of origin.
+   */
+  private val useDistanceBasedFlingStrategy: Boolean = false,
 ) : GestureBuilder {
+
+  /** Forces a drag gesture to be treated as a fling. */
+  override var dragIsFling: Boolean = false
 
   private var gestureStartTimestamp = clock.nanoTime()
   private var lastEventTimestamp = gestureStartTimestamp
@@ -23,7 +33,7 @@ internal class GestureBuilderImpl(
   private var lastEventY = initialY
 
   private val builder =
-    GestureDescription.Builder().setDisplayId(initialState.displayInfo.displayId)
+    gestureDescriptionBuilderProvider.get().setDisplayId(initialState.displayInfo.displayId)
 
   private var _action = GestureBuilder.Action.TOUCH
   /** The logical action represented by this gesture. */
@@ -78,11 +88,15 @@ internal class GestureBuilderImpl(
   private fun toMotionAction(state: JoystickCursorState): GestureBuilder.Action {
     val distanceSquared =
       GestureUtil.distanceSquared(lastEventX, lastEventY, state.pointerX, state.pointerY)
-    if (distanceSquared >= MIN_FLING_DISTANCE_SQUARED) {
+
+    if (useDistanceBasedFlingStrategy && distanceSquared >= MIN_FLING_DISTANCE_SQUARED) {
       return GestureBuilder.Action.FLING
     }
 
     if (distanceSquared >= MIN_DRAG_DISTANCE_SQUARED) {
+      if (dragIsFling) {
+        return GestureBuilder.Action.FLING
+      }
       return GestureBuilder.Action.DRAG
     }
 

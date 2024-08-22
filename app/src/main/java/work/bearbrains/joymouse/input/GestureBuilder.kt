@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input
 
 import android.accessibilityservice.GestureDescription
 
@@ -24,6 +24,9 @@ interface GestureBuilder {
 
   /** Report a cursor move event. */
   fun cursorMove(state: JoystickCursorState)
+
+  /** Forces a drag gesture to be treated as a fling. */
+  var dragIsFling: Boolean
 
   companion object {
     /**

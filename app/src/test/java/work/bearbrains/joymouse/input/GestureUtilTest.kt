@@ -1,9 +1,9 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input
 
 import android.content.Context
 import android.view.ViewConfiguration
 import androidx.test.core.app.ApplicationProvider
-import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -18,7 +18,7 @@ internal class GestureUtilTest {
   fun sanityCheckViewConfiguration() {
     val config = ViewConfiguration.get(context)
 
-    assertThat(config.scaledMinimumFlingVelocity).isEqualTo(50)
+    Truth.assertThat(config.scaledMinimumFlingVelocity).isEqualTo(50)
   }
 
   @Test
@@ -26,7 +26,7 @@ internal class GestureUtilTest {
     val config = ViewConfiguration.get(context)
     val sut = GestureUtil(config, MOCK_MAX_GESTURE_DURATION_MILLISECONDS)
 
-    assertThat(sut.flingTimeBetween(0f, 0f, 50f, 0f)).isEqualTo(12L)
+    Truth.assertThat(sut.flingTimeBetween(0f, 0f, 50f, 0f)).isEqualTo(12L)
   }
 
   @Test
@@ -35,7 +35,7 @@ internal class GestureUtilTest {
     val sut = GestureUtil(config, MOCK_MAX_GESTURE_DURATION_MILLISECONDS)
 
     // Expect < 50 pixels / 1000 ms
-    assertThat(sut.dragTimeBetween(0f, 0f, 50f, 0f)).isEqualTo(990L)
+    Truth.assertThat(sut.dragTimeBetween(0f, 0f, 50f, 0f)).isEqualTo(990L)
   }
 
   private companion object {

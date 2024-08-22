@@ -22,12 +22,17 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import androidx.core.util.isEmpty
 import androidx.core.util.keyIterator
 import java.io.Closeable
 import kotlin.math.absoluteValue
-import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.impl.NanoClockImpl
+import work.bearbrains.joymouse.input.GestureBuilder
+import work.bearbrains.joymouse.input.GestureUtil
+import work.bearbrains.joymouse.input.JoystickAction
+import work.bearbrains.joymouse.input.JoystickCursorState
+import work.bearbrains.joymouse.input.impl.GestureBuilderImpl
+import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
+import work.bearbrains.joymouse.input.impl.JoystickButtonProcessorFactoryImpl
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 import work.bearbrains.joymouse.ui.SwipeVisualization
 
@@ -182,7 +187,13 @@ class MouseAccessibilityService :
     }
 
     if (state.isPrimaryButtonPressed) {
-      activeGestureBuilder = GestureBuilderImpl(state, gestureUtil, NanoClockImpl())
+      activeGestureBuilder =
+        GestureBuilderImpl(
+          state,
+          gestureUtil,
+          NanoClockImpl(),
+          gestureDescriptionBuilderProvider = GestureDescriptionBuilderProvider,
+        )
       cursorState.currentState = CursorDisplayState.State.STATE_PRESSED_TAP
 
       handler.postDelayed(
@@ -202,7 +213,7 @@ class MouseAccessibilityService :
     numRetries: Int = 0,
     onCompleted: ((GestureDescription) -> Unit)? = null,
   ): Boolean {
-    Log.d(TAG, "Dispatching gesture ${gesture} to display ${gesture.displayId}")
+    Log.d(TAG, "Dispatching gesture ${gesture} to display ${gesture.displayId} [$numRetries]")
     return dispatchGesture(
       gesture,
       object : GestureResultCallback() {
@@ -343,25 +354,47 @@ class MouseAccessibilityService :
     updateCursorPosition(newState)
   }
 
-  private fun onAction(state: JoystickCursorState, action: JoystickCursorState.Action) {
+  private fun onAction(state: JoystickCursorState, action: JoystickAction) {
     when (action) {
-      JoystickCursorState.Action.CYCLE_DISPLAY_FORWARD -> {
+      JoystickAction.CYCLE_DISPLAY_FORWARD -> {
         cycleDisplay(state, true)
       }
-      JoystickCursorState.Action.CYCLE_DISPLAY_BACKWARD -> {
+      JoystickAction.CYCLE_DISPLAY_BACKWARD -> {
         cycleDisplay(state, false)
       }
-      JoystickCursorState.Action.SWIPE_UP -> {
+      JoystickAction.SWIPE_UP -> {
         dispatchFling(state, 0f, -SWIPE_DISTANCE)
       }
-      JoystickCursorState.Action.SWIPE_DOWN -> {
+      JoystickAction.SWIPE_DOWN -> {
         dispatchFling(state, 0f, SWIPE_DISTANCE)
       }
-      JoystickCursorState.Action.SWIPE_LEFT -> {
+      JoystickAction.SWIPE_LEFT -> {
         dispatchFling(state, -SWIPE_DISTANCE, 0f)
       }
-      JoystickCursorState.Action.SWIPE_RIGHT -> {
+      JoystickAction.SWIPE_RIGHT -> {
         dispatchFling(state, SWIPE_DISTANCE, 0f)
+      }
+      JoystickAction.TOGGLE_ENABLED -> {
+        if (!state.isEnabled) {
+          val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
+          if (cursorState == null) {
+            Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
+          } else {
+            cursorState.hide()
+          }
+        } else {
+          updateCursorPosition(state)
+        }
+      }
+      JoystickAction.TOGGLE_GESTURE -> {
+        activeGestureBuilder?.let {
+          it.dragIsFling = !it.dragIsFling
+          updateCursorPosition(state)
+        }
+      }
+      JoystickAction.PRIMARY_PRESS,
+      JoystickAction.PRIMARY_RELEASE -> {
+        onUpdatePrimaryButton(state)
       }
       else -> {
         val globalAction = action.toGlobalAction()
@@ -545,36 +578,25 @@ class MouseAccessibilityService :
         xAxis = X_AXIS,
         yAxis = Y_AXIS,
         nanoClock = NanoClockImpl(),
+        JoystickButtonProcessorFactoryImpl,
         onUpdatePosition = ::updateCursorPosition,
-        onUpdatePrimaryButton = ::onUpdatePrimaryButton,
         onAction = ::onAction,
-      ) { state ->
-        if (!state.isEnabled) {
-          val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
-          if (cursorState == null) {
-            Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
-          } else {
-            cursorState.hide()
-          }
-        } else {
-          updateCursorPosition(state)
-        }
-      }
+      )
     joystickDeviceIdsToState[device.id] = newDevice
 
     return newDevice
   }
 
-  private fun JoystickCursorState.Action.toGlobalAction(): Int? {
+  private fun JoystickAction.toGlobalAction(): Int? {
     return when (this) {
-      JoystickCursorState.Action.BACK -> GLOBAL_ACTION_BACK
-      JoystickCursorState.Action.HOME -> GLOBAL_ACTION_HOME
-      JoystickCursorState.Action.RECENTS -> GLOBAL_ACTION_RECENTS
-      JoystickCursorState.Action.DPAD_UP -> GLOBAL_ACTION_DPAD_UP
-      JoystickCursorState.Action.DPAD_DOWN -> GLOBAL_ACTION_DPAD_DOWN
-      JoystickCursorState.Action.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
-      JoystickCursorState.Action.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
-      JoystickCursorState.Action.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
+      JoystickAction.BACK -> GLOBAL_ACTION_BACK
+      JoystickAction.HOME -> GLOBAL_ACTION_HOME
+      JoystickAction.RECENTS -> GLOBAL_ACTION_RECENTS
+      JoystickAction.DPAD_UP -> GLOBAL_ACTION_DPAD_UP
+      JoystickAction.DPAD_DOWN -> GLOBAL_ACTION_DPAD_DOWN
+      JoystickAction.DPAD_LEFT -> GLOBAL_ACTION_DPAD_LEFT
+      JoystickAction.DPAD_RIGHT -> GLOBAL_ACTION_DPAD_RIGHT
+      JoystickAction.ACTIVATE -> GLOBAL_ACTION_DPAD_CENTER
       else -> null
     }
   }

@@ -1,28 +1,10 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input
 
 import android.view.MotionEvent
+import work.bearbrains.joymouse.DisplayInfo
 
 /** Encapsulates state for a virtual cursor that is controlled by axes from [MotionEvent]s. */
 interface JoystickCursorState {
-
-  /** Logical actions that may be emitted by a JoystickCursor */
-  enum class Action {
-    BACK,
-    HOME,
-    RECENTS,
-    DPAD_UP,
-    DPAD_DOWN,
-    DPAD_LEFT,
-    DPAD_RIGHT,
-    ACTIVATE,
-    SWIPE_UP,
-    SWIPE_DOWN,
-    SWIPE_LEFT,
-    SWIPE_RIGHT,
-    CYCLE_DISPLAY_FORWARD,
-    CYCLE_DISPLAY_BACKWARD,
-  }
-
   /** The ID of the physical device that this repeater is associated with. */
   val deviceId: Int
 

@@ -11,7 +11,9 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import work.bearbrains.joymouse.DisplayInfo
-import work.bearbrains.joymouse.GestureUtil
+import work.bearbrains.joymouse.input.GestureUtil
+import work.bearbrains.joymouse.input.impl.GestureBuilderImpl
+import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
 import work.bearbrains.joymouse.test.FakeClock
 import work.bearbrains.joymouse.test.FakeJoystickCursorState
 
@@ -31,7 +33,13 @@ internal class GestureBuilderImplTest {
 
   @Test
   fun gesture_withNoMotion_andShortDelay_isTouch() {
-    val sut = GestureBuilderImpl(FakeJoystickCursorState(displayInfo), gestureUtil, clock)
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        GestureDescriptionBuilderProvider
+      )
     sut.endGesture(FakeJoystickCursorState(displayInfo))
 
     val result = sut.build()
@@ -48,7 +56,13 @@ internal class GestureBuilderImplTest {
 
   @Test
   fun gesture_withNoMotion_andLongDelay_passesThroughDelay() {
-    val sut = GestureBuilderImpl(FakeJoystickCursorState(displayInfo), gestureUtil, clock)
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        GestureDescriptionBuilderProvider
+      )
     val durationMilliseconds = GestureDescription.getMaxGestureDuration() - 1
     clock.advanceMilliseconds(durationMilliseconds)
     sut.endGesture(FakeJoystickCursorState(displayInfo))
@@ -67,7 +81,13 @@ internal class GestureBuilderImplTest {
 
   @Test
   fun gesture_withNoMotion_hasDelayCappedToMaximum() {
-    val sut = GestureBuilderImpl(FakeJoystickCursorState(displayInfo), gestureUtil, clock)
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        GestureDescriptionBuilderProvider
+      )
     val durationMilliseconds = GestureDescription.getMaxGestureDuration() + 1
     clock.advanceMilliseconds(durationMilliseconds)
     sut.endGesture(FakeJoystickCursorState(displayInfo))

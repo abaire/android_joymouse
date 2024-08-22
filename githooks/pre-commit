@@ -1,4 +1,40 @@
-#!/bin/sh
+#!/bin/bash
+
+check_no_diffmarkers_or_whitespace_errors() {
+  # If there are whitespace errors, print the offending file names and fail.
+  set -e
+  git diff-index --check --cached "${1}" --
+  set +e
+}
+
+check_no_donotsubmit() {
+  local filenames="$1"
+
+  if [[ -z "${filenames}" ]]; then
+    return
+  fi
+
+  set +e
+  output="$(grep -H -ni 'DONOTSUBMIT' -- "$1" 2>/dev/null)"
+  found=$?
+  set -e
+
+  if [[ $found -eq 0 ]]; then
+    echo "${output}"
+    echo "DONOTSUBMIT tag found, aborting"
+    exit 1
+  fi
+}
+
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  against=HEAD
+else
+  # Initial commit: diff against an empty tree object
+  against=$(git hash-object -t tree /dev/null)
+fi
+
+# Redirect output to stderr.
+exec 1>&2
 
 readonly added_and_modified_filenames="$(git diff --cached --name-only --diff-filter=d)"
 readonly changed_kt_filenames="$(echo "${added_and_modified_filenames}" | grep -E '.*\.(kt)$')"
@@ -10,3 +46,5 @@ function run_ktfmt() {
 }
 
 run_ktfmt
+check_no_donotsubmit "${added_and_modified_filenames}"
+check_no_diffmarkers_or_whitespace_errors "${against}"
