@@ -450,12 +450,13 @@ class MouseAccessibilityService :
     val rootWindow = windows.last()
     val rootNode = rootWindow.root
 
-    val actionToPerform = AccessibilityNodeInfo.ACTION_SELECT
-    val success = rootNode.performAction(actionToPerform)
-    if (!success) {
-      Log.e(TAG, "Failed to select root node ${rootNode} on display ${displayId}")
+    for (actionToPerform in SELECT_DISPLAY_ACTIONS) {
+      if (rootNode.performAction(actionToPerform)) {
+        return true
+      }
     }
-    return success
+    Log.w(TAG, "Failed to select display ${displayId} with root node ${rootNode}")
+    return false
   }
 
   private fun measureDisplays() {
@@ -526,10 +527,20 @@ class MouseAccessibilityService :
     device: InputDevice,
     displayInfo: DisplayInfo? = null
   ): JoystickCursorState {
+
+    fun getValidDisplayInfo(): DisplayInfo {
+      if (displayInfo != null) {
+        return displayInfo
+      }
+
+      // If the primary display has gone to sleep, it is possible that it is no longer accessible.
+      return displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.first())
+    }
+
     val newDevice =
       JoystickCursorStateImpl.create(
         device = device,
-        displayInfo = displayInfo ?: displayInfos[Display.DEFAULT_DISPLAY]!!,
+        displayInfo = getValidDisplayInfo(),
         handler = handler,
         xAxis = X_AXIS,
         yAxis = Y_AXIS,
@@ -579,7 +590,17 @@ class MouseAccessibilityService :
     // retry count so that retries are progressively further apart.
     const val GESTURE_DISPATCH_RETRY_BACKOFF_MILLIS = 0.5f
 
-    const val SWIPE_DISTANCE = 150f
+    const val SWIPE_DISTANCE = 250f
+
+    // Ordered list of [AccessibilityNodeInfo] actions that will be performed when attempting to set
+    // the active [Display].
+    val SELECT_DISPLAY_ACTIONS =
+      listOf(
+        AccessibilityNodeInfo.ACTION_FOCUS,
+        AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+        AccessibilityNodeInfo.ACTION_SELECT,
+        AccessibilityNodeInfo.ACTION_CLICK,
+      )
   }
 }
 
