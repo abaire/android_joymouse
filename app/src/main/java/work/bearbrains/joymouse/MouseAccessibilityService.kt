@@ -26,6 +26,7 @@ import kotlin.math.absoluteValue
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.impl.NanoClockImpl
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
+import work.bearbrains.joymouse.ui.SwipeVisualization
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService :
@@ -244,6 +245,10 @@ class MouseAccessibilityService :
       return
     }
 
+    // TODO: Consider adding a pause on the initial press
+    // It seems as though these gestures are sometimes ignored by the system, likely discarded as
+    // accidental brushes of the screen. Try breaking this up into an initial stroke that holds
+    // for some number of milliseconds with `willContinue`, followed by the actual fling gesture.
     val builder =
       GestureDescription.Builder().apply {
         setDisplayId(state.displayInfo.displayId)
@@ -261,8 +266,20 @@ class MouseAccessibilityService :
       }
     val wasDispatched =
       dispatchGesture(builder.build()) { gestureDescription ->
-        // TODO: Render swipe into overlay.
-        //        SwipeVisualization(gestureDescription, state.displayInfo.context)
+        val visualization =
+          SwipeVisualization(state.displayInfo, gestureDescription, state.pointerX, state.pointerY)
+        attachAccessibilityOverlayToDisplay(
+          state.displayInfo.displayId,
+          visualization.surfaceControl
+        )
+
+        handler.postDelayed(
+          {
+            SurfaceControl.Transaction().reparent(visualization.surfaceControl, null).apply()
+            visualization.destroy()
+          },
+          500L
+        )
       }
     if (!wasDispatched) {
       Log.e(TAG, "dispatchFling failed for ${state.pointerX}, ${state.pointerY} -> $endX, $endY")

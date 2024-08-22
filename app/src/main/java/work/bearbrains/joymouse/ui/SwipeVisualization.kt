@@ -1,40 +1,170 @@
 package work.bearbrains.joymouse.ui
 
-import android.accessibilityservice.AccessibilityService.WINDOW_SERVICE
 import android.accessibilityservice.GestureDescription
-import android.content.Context
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PathMeasure
 import android.graphics.PixelFormat
-import android.os.Handler
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
+import android.graphics.PorterDuff
+import android.graphics.Rect
+import android.graphics.RectF
+import android.view.Surface
+import android.view.SurfaceControl
 import kotlin.math.atan2
+import kotlin.math.ceil
+import work.bearbrains.joymouse.DisplayInfo
 
 /** Renders a visualization of a [GestureDescription]. */
 class SwipeVisualization(
+  val displayInfo: DisplayInfo,
   gestureDescription: GestureDescription,
-  context: Context,
-  displayForMillis: Long = DISPLAY_FOR_MILLIS
+  x: Float,
+  y: Float,
 ) {
+  /** The [SurfaceControl] into which the visualization will be rendered. */
+  val surfaceControl: SurfaceControl
+
+  private val width: Int
+  private val height: Int
+
   init {
     val paths = collectPaths(gestureDescription)
     if (paths.isNotEmpty()) {
       addArrowhead(paths)
-      val view = createView(paths, context)
-      addView(view, context, displayForMillis)
     }
+
+    val outlineStroke = OUTLINE_STROKE_DP
+    val insideStroke = INSIDE_STROKE_DP
+
+    val totalBounds = measurePaths(paths, outlineStroke)
+
+    val pathMeasure = PathMeasure(paths.first(), false)
+    val origin = FloatArray(2)
+    pathMeasure.getPosTan(0f, origin, null)
+
+    // Translate the paths to the origin.
+    val dX = -totalBounds.left
+    val dY = -totalBounds.top
+    for (path in paths) {
+      path.offset(dX, dY)
+    }
+
+    width = ceil(totalBounds.width()).toInt()
+    height = ceil(totalBounds.height()).toInt()
+
+    surfaceControl = buildSurfaceControl(gestureDescription, width, height)
+    val surface =
+      buildSurface(
+        surfaceControl,
+        paths,
+        originX = origin[0] + dX,
+        originY = origin[1] + dY,
+        width,
+        height,
+        outlineStroke,
+        insideStroke,
+      )
+
+    SurfaceControl.Transaction()
+      .setPosition(surfaceControl, totalBounds.left, totalBounds.top)
+      .apply()
+
+    surface.release()
+  }
+
+  /** Releases the resources used by this visualization. */
+  fun destroy() {
+    surfaceControl.release()
   }
 
   private companion object {
-    const val DISPLAY_FOR_MILLIS = 500L
-    const val OUTLINE_WIDTH = 20f
-    const val FILL_LINE_WIDTH = OUTLINE_WIDTH * 0.75f
+    const val OUTLINE_STROKE_DP = 20f
+    const val INSIDE_STROKE_DP = OUTLINE_STROKE_DP * 0.75f
+
+    fun measurePaths(paths: List<Path>, outlineStroke: Float): RectF {
+      val pathBounds = RectF()
+      val totalBounds = RectF()
+      for (path in paths) {
+        path.computeBounds(pathBounds, false)
+        if (pathBounds.width() == 0f) {
+          pathBounds.right += 1f
+        }
+        if (pathBounds.height() == 0f) {
+          pathBounds.bottom += 1f
+        }
+        pathBounds.inset(-outlineStroke, -outlineStroke)
+        totalBounds.union(pathBounds)
+      }
+
+      return totalBounds
+    }
+
+    fun buildSurfaceControl(
+      gestureDescription: GestureDescription,
+      width: Int,
+      height: Int
+    ): SurfaceControl {
+      return SurfaceControl.Builder()
+        .apply {
+          setName("SwipeVisualizationAccessibilityOverlay")
+          setBufferSize(width, height)
+          setHidden(false)
+          setFormat(PixelFormat.TRANSLUCENT)
+        }
+        .build()
+        .also { surfaceControl ->
+          SurfaceControl.Transaction()
+            .setFrameRate(surfaceControl, 60f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
+            .apply()
+        }
+    }
+
+    fun buildSurface(
+      surfaceControl: SurfaceControl,
+      paths: List<Path>,
+      originX: Float,
+      originY: Float,
+      width: Int,
+      height: Int,
+      outlineStroke: Float,
+      insideStroke: Float,
+    ): Surface {
+      val outlinePaint =
+        Paint().apply {
+          color = Color.BLACK
+          style = Paint.Style.STROKE
+          strokeWidth = outlineStroke
+        }
+
+      val insidePaint =
+        Paint().apply {
+          color = Color.WHITE
+          style = Paint.Style.STROKE
+          strokeWidth = insideStroke
+        }
+
+      return Surface(surfaceControl).apply {
+        val canvas = lockHardwareCanvas()
+
+        val dirtyRect = Rect(0, 0, width, height)
+        canvas.clipRect(dirtyRect)
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+
+        for (path in paths) {
+          canvas.drawPath(path, outlinePaint)
+        }
+        for (path in paths) {
+          canvas.drawPath(path, insidePaint)
+        }
+
+        canvas.drawCircle(originX, originY, 4f, outlinePaint)
+        canvas.drawCircle(originX, originY, 4f, insidePaint)
+
+        unlockCanvasAndPost(canvas)
+      }
+    }
 
     fun collectPaths(gestureDescription: GestureDescription): MutableList<Path> {
       val paths = mutableListOf<Path>()
@@ -74,62 +204,6 @@ class SwipeVisualization(
       lastPath.rewind()
       val shortenLength = 15f
       pathMeasure.getSegment(0f, lastPathLength - shortenLength, lastPath, true)
-    }
-
-    fun createView(paths: List<Path>, context: Context): View {
-      val outlinePaint =
-        Paint().apply {
-          color = Color.BLACK
-          style = Paint.Style.STROKE
-          strokeWidth = OUTLINE_WIDTH
-        }
-
-      val insidePaint =
-        Paint().apply {
-          color = Color.WHITE
-          style = Paint.Style.STROKE
-          strokeWidth = FILL_LINE_WIDTH
-        }
-
-      val pathMeasure = PathMeasure(paths.first(), false)
-      val pos = FloatArray(2)
-      pathMeasure.getPosTan(0f, pos, null)
-
-      return object : View(context) {
-        override fun onDraw(canvas: Canvas) {
-          super.onDraw(canvas)
-          for (path in paths) {
-            canvas.drawPath(path, outlinePaint)
-          }
-          for (path in paths) {
-            canvas.drawPath(path, insidePaint)
-          }
-
-          canvas.drawCircle(pos[0], pos[1], 4f, outlinePaint)
-          canvas.drawCircle(pos[0], pos[1], 4f, insidePaint)
-        }
-      }
-    }
-
-    fun addView(view: View, context: Context, hideAfterMillis: Long) {
-      val windowManager = context.getSystemService(WINDOW_SERVICE) as WindowManager
-      val params =
-        WindowManager.LayoutParams().apply {
-          type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-          format = PixelFormat.TRANSLUCENT
-          flags =
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-              WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-              WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-          width = WindowManager.LayoutParams.WRAP_CONTENT
-          height = WindowManager.LayoutParams.WRAP_CONTENT
-          gravity = Gravity.TOP or Gravity.START
-        }
-
-      windowManager.addView(view, params)
-
-      Handler(context.mainLooper).postDelayed({ windowManager.removeView(view) }, hideAfterMillis)
     }
   }
 }
