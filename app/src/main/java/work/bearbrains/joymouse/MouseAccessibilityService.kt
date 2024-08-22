@@ -22,6 +22,8 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.core.util.isEmpty
+import androidx.core.util.keyIterator
 import java.io.Closeable
 import kotlin.math.absoluteValue
 import work.bearbrains.joymouse.impl.GestureBuilderImpl
@@ -417,9 +419,17 @@ class MouseAccessibilityService :
     Log.d(TAG, "extractDisplaysFromWindows: detected ${numDisplays} with accessibility window info")
 
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-    for (i in 0 ..< numDisplays) {
-      val key = displayToWindows.keyAt(i)
-      displayManager.getDisplay(key)?.let { ret.add(it) }
+    for (key in displayToWindows.keyIterator()) {
+      displayManager.getDisplay(key)?.let {
+        Log.d(TAG, "  Display ${key}: ${it}")
+
+        if (displayToWindows[key].isEmpty()) {
+          Log.i(TAG, "Ignoring display ${key} with no accessibility window info ($it})")
+          return@let
+        }
+
+        ret.add(it)
+      }
     }
 
     return ret
@@ -479,7 +489,7 @@ class MouseAccessibilityService :
         CursorDisplayState(cursorOverlay, handler, onShow = ::attachAccessibilityOverlayToDisplay)
     }
 
-    val displayInfoKeys = displayInfos.keys
+    val displayInfoKeys = displayInfos.keys.toSet()
     for (displayId in displayInfoKeys) {
       if (!detectedDisplayIds.contains(displayId)) {
         displayIdToCursorDisplayState[displayId]?.hide()
