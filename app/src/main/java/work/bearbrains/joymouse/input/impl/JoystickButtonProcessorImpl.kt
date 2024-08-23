@@ -7,6 +7,11 @@ import work.bearbrains.joymouse.input.JoystickButtonProcessor
 
 /** Concrete implementation of [JoystickButtonProcessor]. */
 class JoystickButtonProcessorImpl(
+  /**
+   * The set of buttons that will toggle the JoyMouse on/off when pressed simultaneously. These
+   * buttons must be hardware buttons as axis data is not available when JoyMouse is off.
+   */
+  private val toggleChord: Set<Int>,
   private val unshiftedButtons: Set<ButtonMapping> = emptySet(),
   private val leftShiftButtons: Set<ButtonMapping> = emptySet(),
   private val rightShiftButtons: Set<ButtonMapping> = emptySet(),
@@ -89,6 +94,7 @@ class JoystickButtonProcessorImpl(
     processRawButtonEvents(buttonId)
 
     if (isPressed) {
+      handleToggleChord(buttonId)
       handleButtonPressEvent(buttonId)
     } else {
       handleButtonReleaseEvent(buttonId)
@@ -129,6 +135,16 @@ class JoystickButtonProcessorImpl(
           actionEvent.onRelease?.let { action -> onAction(this, action) }
         }
       }
+    }
+  }
+
+  private fun handleToggleChord(buttonId: Int) {
+    if (!toggleChord.contains(buttonId)) {
+      return
+    }
+
+    if (toggleChord.all { buttonStates.getOrDefault(it, false) }) {
+      onAction(this, JoystickAction.TOGGLE_ENABLED)
     }
   }
 

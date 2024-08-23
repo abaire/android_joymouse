@@ -45,7 +45,9 @@ private constructor(
           // Just through to the onAction handler.
         }
       }
-      onAction(this, action)
+      if (isEnabled || action == JoystickAction.TOGGLE_ENABLED) {
+        onAction(this, action)
+      }
     }
 
   private val eventRepeater =
@@ -98,6 +100,10 @@ private constructor(
   private val hasDeflection: Boolean
     get() = xAxis.deflection != 0f || yAxis.deflection != 0f
 
+  override fun close() {
+    isEnabled = false
+  }
+
   override fun cancelRepeater() {
     eventRepeater.cancel()
   }
@@ -130,7 +136,7 @@ private constructor(
         if (wasModified) {
           buttonProcessor.handleButtonEvent(button.positiveKeycode, button.isPositivePressed)
           button.negativeKeycode?.let { negativeKeycode ->
-            buttonProcessor.handleButtonEvent(button.negativeKeycode, button.isNegativePressed)
+            buttonProcessor.handleButtonEvent(negativeKeycode, button.isNegativePressed)
           }
         }
       }
@@ -165,11 +171,8 @@ private constructor(
     onUpdatePosition(this)
   }
 
-  override fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
-    val shouldConsume = isEnabled
+  override fun handleButtonEvent(isDown: Boolean, keyCode: Int) {
     buttonProcessor.handleButtonEvent(keyCode, isDown)
-
-    return shouldConsume || (isEnabled != shouldConsume)
   }
 
   companion object {

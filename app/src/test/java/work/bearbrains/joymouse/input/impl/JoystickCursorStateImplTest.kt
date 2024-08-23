@@ -138,11 +138,9 @@ internal class JoystickCursorStateImplTest {
   fun sendingToggleChord_clearsIsEnabled() {
     val sut = create()
 
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
-    sut.update(motionEvent)
     sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
     sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_R1)
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_X)
 
     assertThat(sut.isEnabled).isFalse()
   }
@@ -151,13 +149,9 @@ internal class JoystickCursorStateImplTest {
   fun releasingToggleChord_remainsDisabled() {
     val sut = create()
     fun changeChord(isPressed: Boolean) {
-      val axisValue = if (isPressed) 1f else 0f
-
-      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(axisValue)
-      whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(axisValue)
-      sut.update(motionEvent)
       sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_L1)
       sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_R1)
+      sut.handleButtonEvent(isPressed, KeyEvent.KEYCODE_BUTTON_X)
     }
     changeChord(true)
 

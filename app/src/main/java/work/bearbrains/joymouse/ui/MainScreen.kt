@@ -53,6 +53,7 @@ fun MainScreen(
       }
       item { Text(text = stringResource(id = R.string.operating_instructions)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_primary_button)) }
+      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
 
       item {
         Text(
@@ -103,16 +104,6 @@ fun MainScreen(
       item {
         Text(text = stringResource(id = R.string.operating_instructions_action_toggle_gesture))
       }
-
-      item {
-        Text(
-          text =
-            stringResource(id = R.string.operating_instructions_actions_section_double_shift_title),
-          fontWeight = FontWeight.Bold,
-        )
-      }
-
-      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
     }
   }
 }

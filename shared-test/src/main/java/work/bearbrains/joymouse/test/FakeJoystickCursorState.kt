@@ -14,11 +14,11 @@ class FakeJoystickCursorState(
   override var isFastCursorEnabled: Boolean = false,
 ) : JoystickCursorState {
 
+  override fun close() {}
+
   override fun cancelRepeater() {}
 
   override fun update(event: MotionEvent) {}
 
-  override fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean {
-    return false
-  }
+  override fun handleButtonEvent(isDown: Boolean, keyCode: Int) {}
 }

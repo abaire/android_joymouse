@@ -62,6 +62,31 @@ class MouseAccessibilityService :
   // This would allow multiple cursors to be controlled independently.
   private var activeGestureBuilder: GestureBuilder? = null
 
+  private var isEnabled = false
+    set(value) {
+      field = value
+
+      Log.i(TAG, "JoyMouse enabled: ${value}")
+      captureJoystickMotionEvents = value
+    }
+
+  private var captureJoystickMotionEvents: Boolean = false
+    set(value) {
+      if (field == value) {
+        return
+      }
+
+      field = value
+
+      val info = serviceInfo
+      if (value) {
+        info.motionEventSources = SOURCE_JOYSTICK
+      } else {
+        info.motionEventSources = 0
+      }
+      serviceInfo = info
+    }
+
   override fun onServiceConnected() {
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
@@ -69,9 +94,7 @@ class MouseAccessibilityService :
     gestureUtil =
       GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
 
-    val info = serviceInfo
-    info.motionEventSources = SOURCE_JOYSTICK
-    serviceInfo = info
+    isEnabled = true
 
     measureDisplays()
 
@@ -90,7 +113,11 @@ class MouseAccessibilityService :
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
     inputManager.unregisterInputDeviceListener(this)
 
-    destroyCursors()
+    joystickDeviceIdsToState.forEach { (_, state) -> state.close() }
+    joystickDeviceIdsToState.clear()
+
+    displayIdToCursorDisplayState.forEach { (_, state) -> state.hide() }
+
     return super.onUnbind(intent)
   }
 
@@ -116,20 +143,43 @@ class MouseAccessibilityService :
 
   private fun rebuildDisplays() {
     measureDisplays()
-    detectJoystickDevices(getSystemService(Context.INPUT_SERVICE) as InputManager)
+
+    for (joystickId in joystickDeviceIdsToState.keys.toSet()) {
+      val state = joystickDeviceIdsToState[joystickId]!!
+      if (state.displayInfo.isValid) {
+        continue
+      }
+
+      val displayInfo =
+        displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.first())
+
+      moveJoystickCursorToDisplay(state, displayInfo)?.let { newState ->
+        joystickDeviceIdsToState[joystickId] = newState
+      }
+    }
   }
+
+  private val DisplayInfo.isValid: Boolean
+    get() = displayIdToCursorDisplayState.containsKey(displayId)
 
   override fun onKeyEvent(event: KeyEvent?): Boolean {
     if (event == null) {
       return super.onKeyEvent(event)
     }
 
+    Log.d(TAG, "onKeyEvent: ${event}")
+
     val state = joystickDeviceIdsToState.get(event.deviceId)
     if (state == null) {
       return super.onKeyEvent(event)
     }
 
-    return state.handleButtonEvent(event.action == KeyEvent.ACTION_DOWN, event.keyCode)
+    val wasEnabled = state.isEnabled
+    state.handleButtonEvent(event.action == KeyEvent.ACTION_DOWN, event.keyCode)
+
+    // While the state is enabled, all joystick keys will be consumed. If this key resulted in
+    // toggling the state to off, it should also be consumed.
+    return state.isEnabled || state.isEnabled != wasEnabled
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
@@ -329,32 +379,44 @@ class MouseAccessibilityService :
       return
     }
 
-    val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
-    val device = inputManager.getInputDevice(state.deviceId)
-    if (device == null) {
-      Log.e(
-        TAG,
-        "Unexpectedly failed to retrieve device ${state.deviceId} associated with existing state"
-      )
-      return
-    }
-
     val newDisplayInfo = displayInfos[newDisplayId]
     if (newDisplayInfo == null) {
       Log.e(TAG, "Unexpectedly lost displayInfo $newDisplayId")
       return
     }
 
-    destroyJoystickCursorState(state)
-    displayIdToCursorDisplayState.get(currentDisplayId)?.hide()
+    moveJoystickCursorToDisplay(state, newDisplayInfo)
+    selectDisplayRootWindow(newDisplayId)
+  }
+
+  private fun moveJoystickCursorToDisplay(
+    state: JoystickCursorState,
+    newDisplayInfo: DisplayInfo
+  ): JoystickCursorState? {
+    if (newDisplayInfo == state.displayInfo) {
+      return state
+    }
+
+    val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
+    val device = inputManager.getInputDevice(state.deviceId)
+    if (device == null) {
+      Log.e(
+        TAG,
+        "Unexpectedly failed to retrieve device ${state.deviceId} associated with existing joystick state"
+      )
+      return null
+    }
+
+    state.close()
+    displayIdToCursorDisplayState.get(state.displayInfo.displayId)?.hide()
 
     activeGestureBuilder = null
-    selectDisplayRootWindow(newDisplayId)
-    val newState = addJoystickDevice(device, newDisplayInfo)
-    updateCursorPosition(newState)
+
+    return addJoystickDevice(device, newDisplayInfo).also { updateCursorPosition(it) }
   }
 
   private fun onAction(state: JoystickCursorState, action: JoystickAction) {
+    Log.d(TAG, "onAction ${action} for state ${state}")
     when (action) {
       JoystickAction.CYCLE_DISPLAY_FORWARD -> {
         cycleDisplay(state, true)
@@ -375,6 +437,7 @@ class MouseAccessibilityService :
         dispatchFling(state, SWIPE_DISTANCE, 0f)
       }
       JoystickAction.TOGGLE_ENABLED -> {
+        isEnabled = state.isEnabled
         if (!state.isEnabled) {
           val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
           if (cursorState == null) {
@@ -395,6 +458,10 @@ class MouseAccessibilityService :
       JoystickAction.PRIMARY_PRESS,
       JoystickAction.PRIMARY_RELEASE -> {
         onUpdatePrimaryButton(state)
+      }
+      JoystickAction.FAST_CURSOR_PRESS,
+      JoystickAction.FAST_CURSOR_RELEASE -> {
+        // Intentionally ignored
       }
       else -> {
         val globalAction = action.toGlobalAction()
@@ -420,7 +487,7 @@ class MouseAccessibilityService :
   }
 
   override fun onInputDeviceRemoved(deviceId: Int) {
-    joystickDeviceIdsToState.get(deviceId)?.cancelRepeater()
+    joystickDeviceIdsToState.get(deviceId)?.close()
     joystickDeviceIdsToState.remove(deviceId)
   }
 
@@ -532,27 +599,29 @@ class MouseAccessibilityService :
     }
   }
 
-  private fun destroyJoystickCursorState(state: JoystickCursorState) {
-    state.cancelRepeater()
-  }
-
-  private fun destroyCursors() {
-    joystickDeviceIdsToState.forEach { (_, state) -> destroyJoystickCursorState(state) }
-    joystickDeviceIdsToState.clear()
-
-    displayIdToCursorDisplayState.forEach { (_, state) -> state.hide() }
-  }
-
   private fun detectJoystickDevices(inputManager: InputManager) {
-    destroyCursors()
+    val visitedDevices = mutableSetOf<Int>()
 
     for (deviceId in inputManager.inputDeviceIds) {
       inputManager.getInputDevice(deviceId)?.let { device ->
         if (!device.isJoystick) {
           return@let
         }
+
+        visitedDevices.add(deviceId)
+        if (joystickDeviceIdsToState.containsKey(deviceId)) {
+          return@let
+        }
+
         addJoystickDevice(device)
       }
+    }
+
+    val removedDevices = joystickDeviceIdsToState.keys.toMutableSet()
+    removedDevices.removeAll(visitedDevices)
+    for (deviceId in removedDevices) {
+      joystickDeviceIdsToState[deviceId]?.close()
+      joystickDeviceIdsToState.remove(deviceId)
     }
   }
 

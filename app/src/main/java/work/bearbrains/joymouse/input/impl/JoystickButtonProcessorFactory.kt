@@ -74,24 +74,16 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
         mapping(basicButton(KeyEvent.KEYCODE_DPAD_RIGHT), onRelease = JoystickAction.SWIPE_RIGHT),
       )
 
-    val dualShifted =
-      setOf(
-
-        // Left and right shift buttons
-        mapping(
-          chordButton(
-            KeyEvent.KEYCODE_BUTTON_L1,
-            KeyEvent.KEYCODE_BUTTON_R1,
-          ),
-          onPress = JoystickAction.TOGGLE_ENABLED
-        ),
-      )
-
     return JoystickButtonProcessorImpl(
+      toggleChord =
+        setOf(
+          KeyEvent.KEYCODE_BUTTON_L1,
+          KeyEvent.KEYCODE_BUTTON_R1,
+          KeyEvent.KEYCODE_BUTTON_X,
+        ),
       unshiftedButtons = unshifted,
       leftShiftButtons = leftShifted,
       rightShiftButtons = rightShifted,
-      dualShiftButtons = dualShifted,
       rawButtons =
         setOf(
           JoystickButtonProcessorImpl.RawButtonMapping(

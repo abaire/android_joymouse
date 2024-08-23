@@ -1,10 +1,11 @@
 package work.bearbrains.joymouse.input
 
 import android.view.MotionEvent
+import java.io.Closeable
 import work.bearbrains.joymouse.DisplayInfo
 
 /** Encapsulates state for a virtual cursor that is controlled by axes from [MotionEvent]s. */
-interface JoystickCursorState {
+interface JoystickCursorState : Closeable {
   /** The ID of the physical device that this repeater is associated with. */
   val deviceId: Int
 
@@ -35,5 +36,5 @@ interface JoystickCursorState {
   fun update(event: MotionEvent)
 
   /** Processes a press/release event. Returns true if the event was consumed. */
-  fun handleButtonEvent(isDown: Boolean, keyCode: Int): Boolean
+  fun handleButtonEvent(isDown: Boolean, keyCode: Int)
 }
