@@ -8,7 +8,7 @@ internal class VirtualButtonTest {
 
   @Test
   fun isPressed_defaultsToFalse() {
-    val sut = VirtualButton(emptySet(), false)
+    val sut = VirtualButton(setOf(KeyEvent.KEYCODE_BUTTON_A), false)
 
     assertThat(sut.isPressed).isFalse()
   }

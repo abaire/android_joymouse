@@ -4,22 +4,29 @@
     <string name="accessibility_service_description">Allows the use of a joystick or gamepad to control a mouse cursor in order to interact with this device.</string>
 
     <string name="operating_instructions_section_title">Usage:</string>
-    <string name="operating_instructions">Once enabled, moving the right thumbstick will move the mouse cursor. Pressing the left shoulder button while moving the cursor will cause it to move faster.</string>
-    <string name="operating_instructions_primary_button">Pulling the right trigger will simulate a finger down. If the trigger is released quickly, it will emulate a tap at the cursor position. If the trigger is held and then released, it will act as a long press. If the trigger is held and the cursor is moved it will be interpreted as a drag. If the left trigger and A button are pressed while dragging, the drag will be changed to a fling gesture.</string>
-    <string name="operating_instructions_toggle_chord">Pulling both the left and right triggers while pressing both shoulder buttons will toggle the virtual mouse on and off.</string>
+    <string name="operating_instructions">Once enabled, moving the right thumbstick will move the mouse cursor. Pressing the left trigger while moving the cursor will cause it to move faster.</string>
+    <string name="operating_instructions_primary_button">Pulling the right trigger will simulate a finger down. If the trigger is released quickly, it will emulate a tap at the cursor position. If the trigger is held and then released, it will act as a long press. If the trigger is held and the cursor is moved it will be interpreted as a drag. If the A button is pressed while dragged, the drag will be toggled to a fling gesture.</string>
 
     <string name="operating_instructions_actions_section_title">Actions:</string>
+    <string name="operating_instructions_actions_section_unshifted_title">Without holding either trigger:</string>
     <string name="operating_instructions_action_back">• `SELECT` or `B`: `BACK`</string>
     <string name="operating_instructions_action_home">• `MODE`: `HOME`</string>
     <string name="operating_instructions_action_start">• `START`: `START``</string>
     <string name="operating_instructions_action_activate">• `A`: `ACTIVATE`</string>
 
-    <string name="operating_instructions_action_display_backward">• `LEFT SHOULDER` while holding left trigger: switch to previous display device</string>
-    <string name="operating_instructions_action_display_forward">• `RIGHT SHOULDER` while holding left trigger: switch to next display device</string>
-    <string name="operating_instructions_action_swipe_up">• `DPAD-UP` while holding left trigger: `fling up`</string>
-    <string name="operating_instructions_action_swipe_down">• `DPAD-DOWN` while holding left trigger: `fling down`</string>
-    <string name="operating_instructions_action_swipe_left">• `DPAD-LEFT` while holding left trigger: `fling left`</string>
-    <string name="operating_instructions_action_swipe_right">• `DPAD-RIGHT` while holding left trigger: `fling right`</string>
+    <string name="operating_instructions_actions_section_left_shift_title">While holding the left trigger:</string>
+    <string name="operating_instructions_action_display_backward">• `LEFT SHOULDER`: switch to previous display device</string>
+    <string name="operating_instructions_action_display_forward">• `RIGHT SHOULDER`: switch to next display device</string>
+
+    <string name="operating_instructions_actions_section_right_shift_title">While holding the right trigger:</string>
+    <string name="operating_instructions_action_swipe_up">• `DPAD-UP`: `fling up`</string>
+    <string name="operating_instructions_action_swipe_down">• `DPAD-DOWN`: `fling down`</string>
+    <string name="operating_instructions_action_swipe_left">• `DPAD-LEFT`: `fling left`</string>
+    <string name="operating_instructions_action_swipe_right">• `DPAD-RIGHT`: `fling right`</string>
+    <string name="operating_instructions_action_toggle_gesture">• `A`: toggle between drag and fling gestures</string>
+
+    <string name="operating_instructions_actions_section_double_shift_title">While holding the left and right trigger:</string>
+    <string name="operating_instructions_toggle_chord">• `LEFT SHOULDER` + `RIGHT SHOULDER`: toggle the virtual mouse on and off.</string>
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
 

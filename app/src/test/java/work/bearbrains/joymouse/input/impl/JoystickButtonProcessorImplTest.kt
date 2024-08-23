@@ -12,8 +12,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_PRESS_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
@@ -29,8 +30,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_PRESS_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
@@ -46,8 +48,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_PRESS_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
@@ -63,8 +66,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_PRESS_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
@@ -83,8 +87,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_RELEASE_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), onRelease = ACTION_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
@@ -98,8 +103,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_RELEASE_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), onRelease = ACTION_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
@@ -116,8 +122,9 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_RELEASE_ONLY)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), onRelease = ACTION_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
@@ -132,12 +139,13 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), onRelease = ACTION_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(sut.shiftButton, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
@@ -148,16 +156,17 @@ internal class JoystickButtonProcessorImplTest {
   }
 
   @Test
-  fun shifted_multiplexed_withShiftHeld_emitsActionOnPress() {
+  fun shifted_multiplexed_withLeftShiftHeld_emitsShiftedActionOnPress() {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
-    sut.handleButtonEvent(sut.shiftButton, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
 
     assertThat(captor.size).isEqualTo(1)
@@ -166,15 +175,34 @@ internal class JoystickButtonProcessorImplTest {
   }
 
   @Test
+  fun shifted_multiplexed_withDoubleShiftHeld_doesNotEmitAction() {
+    val captor = EventCaptor()
+    val sut =
+      JoystickButtonProcessorImpl(
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        onAction = captor.capture(),
+      )
+
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.RIGHT_SHIFT, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
+
+    assertThat(captor.size).isEqualTo(0)
+  }
+
+  @Test
   fun shifted_multiplexed_withShiftHeld_emitsActionOnRelease() {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
-    sut.handleButtonEvent(sut.shiftButton, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
     captor.reset()
 
@@ -190,15 +218,16 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
-    sut.handleButtonEvent(sut.shiftButton, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
     captor.reset()
 
-    sut.handleButtonEvent(sut.shiftButton, false)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, false)
 
     assertThat(captor.size).isEqualTo(0)
   }
@@ -208,13 +237,14 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ACTION_ON_BOTH)),
+        unshiftedButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
-    sut.handleButtonEvent(sut.shiftButton, true)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, true)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(sut.shiftButton, false)
+    sut.handleButtonEvent(JoystickButtonProcessorImpl.LEFT_SHIFT, false)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
@@ -229,17 +259,18 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(multiplexedButton(), ACTION_ON_BOTH),
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
 
     assertThat(captor.size).isEqualTo(2)
     assertThat(captor.events.first().first).isEqualTo(sut)
@@ -253,17 +284,18 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH),
-            ButtonMapping(subchordButton(), ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
 
     assertThat(captor.size).isEqualTo(2)
     assertThat(captor.events.first().first).isEqualTo(sut)
@@ -277,16 +309,17 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(multiplexedButton(), ACTION_ON_BOTH),
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
@@ -301,16 +334,17 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH),
-            ButtonMapping(subchordButton(), ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(subchordButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
@@ -325,16 +359,17 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH),
-            ButtonMapping(overlappingChordButton(), ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_B, true)
@@ -348,17 +383,18 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(chordButton(), CHORDED_ACTION_ON_BOTH),
-            ButtonMapping(overlappingChordButton(), ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(multiplexedButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(chordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, false)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_B, true)
@@ -372,18 +408,19 @@ internal class JoystickButtonProcessorImplTest {
     val captor = EventCaptor()
     val sut =
       JoystickButtonProcessorImpl(
-        basicButtons =
-          listOf(
-            ButtonMapping(chordButton(), ACTION_ON_BOTH),
-            ButtonMapping(overlappingChordButton(), CHORDED_ACTION_ON_BOTH)
+        unshiftedButtons =
+          setOf(
+            mapping(chordButton(), ACTION_PRESS, ACTION_RELEASE),
+            mapping(overlappingChordButton(), CHORD_PRESS, CHORD_RELEASE)
           ),
-        shiftButtons = listOf(ButtonMapping(multiplexedButton(), ALT_ACTION_ON_BOTH)),
+        leftShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
+        rightShiftButtons = setOf(mapping(multiplexedButton(), ALT_PRESS, ALT_RELEASE)),
         onAction = captor.capture(),
       )
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, true)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R1, false)
     captor.reset()
 
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
@@ -410,8 +447,15 @@ internal class JoystickButtonProcessorImplTest {
   }
 
   private companion object {
+    fun mapping(
+      button: VirtualButton,
+      onPress: JoystickAction? = null,
+      onRelease: JoystickAction? = null,
+    ): JoystickButtonProcessorImpl.ButtonMapping =
+      JoystickButtonProcessorImpl.ButtonMapping(button, onPress = onPress, onRelease = onRelease)
+
     fun chordButton() =
-      VirtualButton(setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_R2), isChord = true)
+      VirtualButton(setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_R1), isChord = true)
 
     fun subchordButton() = VirtualButton(setOf(KeyEvent.KEYCODE_BUTTON_A), isChord = true)
 
@@ -421,24 +465,12 @@ internal class JoystickButtonProcessorImplTest {
     fun multiplexedButton() =
       VirtualButton(setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B), isChord = false)
 
+    // Arbitrary action pairings.
     val ACTION_PRESS = JoystickAction.PRIMARY_PRESS
     val ACTION_RELEASE = JoystickAction.PRIMARY_RELEASE
-    val ACTION_ON_PRESS_ONLY =
-      JoystickButtonProcessorImpl.ActionSet(onPress = ACTION_PRESS, onRelease = null)
-    val ACTION_ON_RELEASE_ONLY =
-      JoystickButtonProcessorImpl.ActionSet(onRelease = ACTION_RELEASE, onPress = null)
-
-    val ACTION_ON_BOTH =
-      JoystickButtonProcessorImpl.ActionSet(onPress = ACTION_PRESS, onRelease = ACTION_RELEASE)
-
-    val CHORD_PRESS = JoystickAction.SWIPE_RIGHT
-    val CHORD_RELEASE = JoystickAction.SWIPE_LEFT
-    val CHORDED_ACTION_ON_BOTH =
-      JoystickButtonProcessorImpl.ActionSet(onPress = CHORD_PRESS, onRelease = CHORD_RELEASE)
-
-    val ALT_PRESS = JoystickAction.CYCLE_DISPLAY_FORWARD
-    val ALT_RELEASE = JoystickAction.CYCLE_DISPLAY_BACKWARD
-    val ALT_ACTION_ON_BOTH =
-      JoystickButtonProcessorImpl.ActionSet(onPress = ALT_PRESS, onRelease = ALT_RELEASE)
+    val CHORD_PRESS = JoystickAction.CYCLE_DISPLAY_FORWARD
+    val CHORD_RELEASE = JoystickAction.CYCLE_DISPLAY_BACKWARD
+    val ALT_PRESS = JoystickAction.FAST_CURSOR_PRESS
+    val ALT_RELEASE = JoystickAction.FAST_CURSOR_RELEASE
   }
 }

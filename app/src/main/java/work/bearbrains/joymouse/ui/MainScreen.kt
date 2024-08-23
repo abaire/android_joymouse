@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import work.bearbrains.joymouse.R
 
 @Composable
@@ -52,12 +53,19 @@ fun MainScreen(
       }
       item { Text(text = stringResource(id = R.string.operating_instructions)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_primary_button)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
 
       item {
         Text(
           text = stringResource(id = R.string.operating_instructions_actions_section_title),
           style = MaterialTheme.typography.headlineSmall
+        )
+      }
+
+      item {
+        Text(
+          text =
+            stringResource(id = R.string.operating_instructions_actions_section_unshifted_title),
+          fontWeight = FontWeight.Bold,
         )
       }
 
@@ -67,15 +75,44 @@ fun MainScreen(
       item { Text(text = stringResource(id = R.string.operating_instructions_action_activate)) }
 
       item {
+        Text(
+          text =
+            stringResource(id = R.string.operating_instructions_actions_section_left_shift_title),
+          fontWeight = FontWeight.Bold,
+        )
+      }
+      item {
         Text(text = stringResource(id = R.string.operating_instructions_action_display_backward))
       }
       item {
         Text(text = stringResource(id = R.string.operating_instructions_action_display_forward))
       }
+
+      item {
+        Text(
+          text =
+            stringResource(id = R.string.operating_instructions_actions_section_right_shift_title),
+          fontWeight = FontWeight.Bold,
+        )
+      }
+
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_up)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_down)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_left)) }
       item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_right)) }
+      item {
+        Text(text = stringResource(id = R.string.operating_instructions_action_toggle_gesture))
+      }
+
+      item {
+        Text(
+          text =
+            stringResource(id = R.string.operating_instructions_actions_section_double_shift_title),
+          fontWeight = FontWeight.Bold,
+        )
+      }
+
+      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
     }
   }
 }

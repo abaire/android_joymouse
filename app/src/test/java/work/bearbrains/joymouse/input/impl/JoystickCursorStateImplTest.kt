@@ -42,32 +42,34 @@ internal class JoystickCursorStateImplTest {
   }
 
   @Test
-  fun update_withLeftBumper_andNoShift_setsFastCursorEnabled() {
+  fun update_withLeftTrigger_andNoShift_setsFastCursorEnabled() {
     val sut = create()
-
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
 
     assertThat(sut.isFastCursorEnabled).isTrue()
   }
 
   @Test
-  fun update_withLeftBumperPressedAndReleased_andNoShift_clearsFastCursorEnabled() {
+  fun update_withLeftTriggerReleased_andNoShift_clearsFastCursorEnabled() {
     val sut = create()
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
 
-    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_L1)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(0f)
+    sut.update(motionEvent)
 
     assertThat(sut.isFastCursorEnabled).isFalse()
   }
 
   @Test
-  fun update_withLeftBumper_andShift_doesNotSetsFastCursorEnabled() {
+  fun update_withLeftTrigger_andRightShift_setsFastCursorEnabled() {
     val sut = create()
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     sut.update(motionEvent)
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
 
-    assertThat(sut.isFastCursorEnabled).isFalse()
+    assertThat(sut.isFastCursorEnabled).isTrue()
   }
 
   @Test
@@ -187,28 +189,23 @@ internal class JoystickCursorStateImplTest {
 
   @Test
   fun chordEvents_preventUnchordEvents() {
-    // L2 + UP should emit SWIPE_UP, but should not emit DPAD_UP.
-    var timesCalled = 0
-    var receivedState: JoystickCursorState? = null
-    var receivedAction: JoystickAction? = null
-    val sut =
-      create(
-        onAction = { state, action ->
-          timesCalled += 1
-          receivedState = state
-          receivedAction = action
-        }
-      )
+    // R2 + UP should emit SWIPE_UP, but should not emit DPAD_UP.
+    val captor = EventCaptor()
+    val sut = create(onAction = captor.capture())
 
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_HAT_Y)).thenReturn(-1f)
     sut.update(motionEvent)
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_HAT_Y)).thenReturn(0f)
     sut.update(motionEvent)
 
-    assertThat(timesCalled).isEqualTo(1)
-    assertThat(receivedState).isEqualTo(sut)
-    assertThat(receivedAction).isEqualTo(JoystickAction.SWIPE_UP)
+    assertThat(captor.size).isEqualTo(2)
+    assertThat(
+      captor.containsExactly(
+        Pair(sut, JoystickAction.PRIMARY_PRESS),
+        Pair(sut, JoystickAction.SWIPE_UP)
+      )
+    )
   }
 
   @Test
@@ -290,7 +287,7 @@ internal class JoystickCursorStateImplTest {
         }
       )
 
-    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L2)
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
     sut.update(motionEvent)
     nanoClock.advanceMilliseconds(1)
@@ -400,6 +397,25 @@ internal class JoystickCursorStateImplTest {
       onUpdatePosition = onUpdatePosition,
       onAction = onAction,
     ) as JoystickCursorStateImpl
+  }
+
+  private class EventCaptor {
+    val events = mutableListOf<Pair<JoystickCursorState, JoystickAction>>()
+
+    val size: Int
+      get() = events.size
+
+    fun capture(): (JoystickCursorState, JoystickAction) -> Unit = { processor, action ->
+      events.add(Pair(processor, action))
+    }
+
+    fun containsExactly(vararg events: Pair<JoystickCursorState, JoystickAction>): Boolean {
+      return this.events == events
+    }
+
+    fun reset() {
+      events.clear()
+    }
   }
 
   private companion object {

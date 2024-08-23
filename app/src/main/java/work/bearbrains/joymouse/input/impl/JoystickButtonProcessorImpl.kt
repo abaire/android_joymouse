@@ -1,29 +1,55 @@
 package work.bearbrains.joymouse.input.impl
 
 import android.view.KeyEvent
+import java.lang.IllegalArgumentException
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickButtonProcessor
 
-typealias ButtonMapping = Pair<VirtualButton, JoystickButtonProcessorImpl.ActionSet>
-
-/** Constructs a new [ButtonMapping] instance. */
-fun buttonMapping(
-  button: VirtualButton,
-  onPress: JoystickAction? = null,
-  onRelease: JoystickAction? = null,
-): ButtonMapping =
-  ButtonMapping(
-    button,
-    JoystickButtonProcessorImpl.ActionSet(onPress = onPress, onRelease = onRelease)
-  )
-
 /** Concrete implementation of [JoystickButtonProcessor]. */
 class JoystickButtonProcessorImpl(
-  private val basicButtons: List<ButtonMapping> = emptyList(),
-  private val shiftButtons: List<ButtonMapping> = emptyList(),
-  override var shiftButton: Int = KeyEvent.KEYCODE_BUTTON_L2,
+  private val unshiftedButtons: Set<ButtonMapping> = emptySet(),
+  private val leftShiftButtons: Set<ButtonMapping> = emptySet(),
+  private val rightShiftButtons: Set<ButtonMapping> = emptySet(),
+  private val dualShiftButtons: Set<ButtonMapping> = emptySet(),
+  private val rawButtons: Set<RawButtonMapping> = emptySet(),
   private val onAction: (JoystickButtonProcessor, JoystickAction) -> Unit,
 ) : JoystickButtonProcessor {
+  private interface ButtonHolder {
+    val button: VirtualButton
+  }
+
+  /** Describes actions that should be executed for a given [VirtualButton]. */
+  data class ButtonMapping(
+    override val button: VirtualButton,
+    val actionSet: ActionSet,
+  ) : ButtonHolder {
+    constructor(
+      button: VirtualButton,
+      onPress: JoystickAction? = null,
+      onRelease: JoystickAction? = null,
+    ) : this(button, ActionSet(onPress = onPress, onRelease = onRelease))
+  }
+
+  /**
+   * Describes actions for a button that should be sent independent of shift states or keycodes
+   * being part of other button mappings. The given [VirtualButton] must have exactly one component.
+   */
+  data class RawButtonMapping(
+    override val button: VirtualButton,
+    val actionSet: ActionSet,
+  ) : ButtonHolder {
+    constructor(
+      button: VirtualButton,
+      onPress: JoystickAction? = null,
+      onRelease: JoystickAction? = null,
+    ) : this(button, ActionSet(onPress = onPress, onRelease = onRelease))
+
+    init {
+      if (button.components.size != 1) {
+        throw IllegalArgumentException("`button` must have exactly one component.")
+      }
+    }
+  }
 
   class ActionSet(val onPress: JoystickAction?, val onRelease: JoystickAction?)
 
@@ -52,9 +78,6 @@ class JoystickButtonProcessorImpl(
   /** Map of button IDs to [ButtonMapping] instances that were triggered when they were pressed. */
   private val buttonLatches = mutableMapOf<Int, ButtonMapping>()
 
-  override val isShifted: Boolean
-    get() = buttonStates.getOrDefault(shiftButton, false)
-
   override fun handleButtonEvent(buttonId: Int, isPressed: Boolean) {
     val oldState = buttonStates.getOrDefault(buttonId, false)
     if (oldState == isPressed) {
@@ -62,6 +85,8 @@ class JoystickButtonProcessorImpl(
     }
 
     buttonStates[buttonId] = isPressed
+
+    processRawButtonEvents(buttonId)
 
     if (isPressed) {
       handleButtonPressEvent(buttonId)
@@ -77,16 +102,50 @@ class JoystickButtonProcessorImpl(
 
     buttonLatches.clear()
 
-    fun clearVirtualButtons(mappings: List<ButtonMapping>) {
-      mappings.forEach { (button, _) -> button.reset() }
+    fun clearVirtualButtons(mappings: Iterable<ButtonHolder>) {
+      mappings.forEach { it.button.reset() }
     }
 
-    clearVirtualButtons(basicButtons)
-    clearVirtualButtons(shiftButtons)
+    clearVirtualButtons(unshiftedButtons)
+    clearVirtualButtons(leftShiftButtons)
+    clearVirtualButtons(rightShiftButtons)
+    clearVirtualButtons(dualShiftButtons)
+    clearVirtualButtons(rawButtons)
+  }
+
+  /** Process events for single buttons that ignore shift modes. */
+  private fun processRawButtonEvents(buttonId: Int) {
+    for (mapping in rawButtons) {
+      val (button, actionEvent) = mapping
+      if (button.isInterestedIn(buttonId)) {
+        val stateChanged = button.update(buttonStates)
+        if (!stateChanged) {
+          continue
+        }
+
+        if (button.isPressed) {
+          actionEvent.onPress?.let { action -> onAction(this, action) }
+        } else {
+          actionEvent.onRelease?.let { action -> onAction(this, action) }
+        }
+      }
+    }
   }
 
   private fun handleButtonPressEvent(buttonId: Int) {
-    val buttonList = if (isShifted) shiftButtons else basicButtons
+    val leftShift = buttonStates.getOrDefault(LEFT_SHIFT, false)
+    val rightShift = buttonStates.getOrDefault(RIGHT_SHIFT, false)
+
+    val buttonList =
+      if (leftShift && rightShift) {
+        dualShiftButtons
+      } else if (rightShift) {
+        rightShiftButtons
+      } else if (leftShift) {
+        leftShiftButtons
+      } else {
+        unshiftedButtons
+      }
 
     for (mapping in buttonList) {
       val (button, actionEvent) = mapping
@@ -109,7 +168,7 @@ class JoystickButtonProcessorImpl(
       // Latch all of the components of this [VirtualButton] and add a callback to clean them up.
       button.components.forEach {
         // Cancel any subset latches.
-        buttonLatches[it]?.first?.onFullyReleased = null
+        buttonLatches[it]?.button?.onFullyReleased = null
         buttonLatches[it] = mapping
       }
       button.onFullyReleased = { button.components.forEach { buttonLatches.remove(it) } }
@@ -119,13 +178,13 @@ class JoystickButtonProcessorImpl(
   }
 
   private fun handleButtonReleaseEvent(buttonId: Int) {
-    buttonLatches.get(buttonId)?.let { (button, actionSet) ->
-      val stateChanged = button.update(buttonStates)
+    buttonLatches.get(buttonId)?.let { mapping ->
+      val stateChanged = mapping.button.update(buttonStates)
       if (!stateChanged) {
         return
       }
 
-      actionSet.onRelease?.let { action -> onAction(this, action) }
+      mapping.actionSet.onRelease?.let { action -> onAction(this, action) }
     }
   }
 
@@ -135,7 +194,12 @@ class JoystickButtonProcessorImpl(
    */
   private fun VirtualButton.isLockedOut(): Boolean {
     val latchedComponents = buttonLatches.keys.intersect(components)
-    return latchedComponents.any { buttonLatches[it]?.first?.let { isLockedOutBy(it) } ?: false }
+    return latchedComponents.any { buttonLatches[it]?.button?.let { isLockedOutBy(it) } ?: false }
+  }
+
+  companion object {
+    const val LEFT_SHIFT = KeyEvent.KEYCODE_BUTTON_L2
+    const val RIGHT_SHIFT = KeyEvent.KEYCODE_BUTTON_R2
   }
 }
 

@@ -1,5 +1,7 @@
 package work.bearbrains.joymouse.input.impl
 
+import java.lang.IllegalArgumentException
+
 /** Represents a virtual button controlled by one or more logical buttons. */
 class VirtualButton(
   /** The [KeyEvent] `KEYCODE_BUTTON_` constants that contribute to this [VirtualButton]. */
@@ -10,6 +12,12 @@ class VirtualButton(
    */
   private val isChord: Boolean,
 ) {
+
+  init {
+    if (components.isEmpty()) {
+      throw IllegalArgumentException("`components` must not be empty.")
+    }
+  }
 
   var isPressed: Boolean = false
     private set
