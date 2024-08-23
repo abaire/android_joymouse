@@ -1,6 +1,7 @@
 package work.bearbrains.joymouse.input
 
 import android.accessibilityservice.GestureDescription
+import work.bearbrains.joymouse.DisplayInfo
 
 /** Provides functionality to compile a gesture over the course of some number of events. */
 interface GestureBuilder {
@@ -15,6 +16,9 @@ interface GestureBuilder {
 
   /** The logical action represented by this gesture. */
   val action: Action
+
+  /** The display on which the constructed gesture will act. */
+  val displayInfo: DisplayInfo
 
   /** Constructs a [GestureDescription] from the compiled state events. */
   fun build(): GestureDescription

@@ -31,6 +31,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
   override fun close() {
     activeSurface?.release()
     activeSurface = null
+    surfaceControl.release()
   }
 
   /** The tint that should be applied to the cursor image. */

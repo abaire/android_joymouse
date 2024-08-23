@@ -25,6 +25,8 @@ internal class GestureBuilderImpl(
   /** Forces a drag gesture to be treated as a fling. */
   override var dragIsFling: Boolean = false
 
+  override val displayInfo = initialState.displayInfo
+
   private var gestureStartTimestamp = clock.nanoTime()
   private var lastEventTimestamp = gestureStartTimestamp
   private val initialX = initialState.pointerX

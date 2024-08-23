@@ -2,8 +2,10 @@ package work.bearbrains.joymouse
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
+import android.os.StrictMode
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +22,16 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+      StrictMode.setVmPolicy(
+        StrictMode.VmPolicy.Builder()
+          .detectLeakedClosableObjects()
+          .penaltyLog()
+          .penaltyDeath()
+          .build()
+      )
+    }
 
     overlayEnabledState.value = Settings.canDrawOverlays(this)
     val manageOverlayActivityResult =

@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Path
+import android.graphics.PointF
+import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.hardware.input.InputManager
 import android.os.Handler
@@ -25,6 +27,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.util.keyIterator
 import java.io.Closeable
 import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 import work.bearbrains.joymouse.impl.NanoClockImpl
 import work.bearbrains.joymouse.input.GestureBuilder
 import work.bearbrains.joymouse.input.GestureUtil
@@ -35,6 +38,7 @@ import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
 import work.bearbrains.joymouse.input.impl.JoystickButtonProcessorFactoryImpl
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 import work.bearbrains.joymouse.ui.SwipeVisualization
+import work.bearbrains.joymouse.ui.lastPoint
 
 /** Handles conversion of joystick input events to motion eventsevents. */
 class MouseAccessibilityService :
@@ -55,8 +59,6 @@ class MouseAccessibilityService :
   private val closeableOverlays = mutableSetOf<Closeable>()
 
   private lateinit var gestureUtil: GestureUtil
-
-  private val cursorDisplayTimeoutMilliseconds = 1500L
 
   // TODO: activeGestureBuilder should be associated with a joystick state
   // This would allow multiple cursors to be controlled independently.
@@ -116,7 +118,7 @@ class MouseAccessibilityService :
     joystickDeviceIdsToState.forEach { (_, state) -> state.close() }
     joystickDeviceIdsToState.clear()
 
-    displayIdToCursorDisplayState.forEach { (_, state) -> state.hide() }
+    displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
 
     return super.onUnbind(intent)
   }
@@ -290,16 +292,32 @@ class MouseAccessibilityService :
 
   /** Dispatches the gesture(s) built up by the [activeGestureBuilder] and resets it. */
   private fun dispatchPendingGesture() {
-    activeGestureBuilder?.let {
-      val gesture = it.build()
+    activeGestureBuilder?.let { builder ->
+      activeGestureBuilder = null
+
+      val gesture = builder.build()
+
+      // Attempt an accessibility click
+      if (builder.action == GestureBuilder.Action.TOUCH) {
+        val point = PointF()
+        if (gesture.lastPoint(point)) {
+          if (
+            performAccessibilityClick(
+              builder.displayInfo,
+              point.x.roundToInt(),
+              point.y.roundToInt()
+            )
+          ) {
+            return@let
+          }
+        }
+      }
 
       val wasDispatched = dispatchGesture(gesture)
       if (!wasDispatched) {
         Log.e(TAG, "dispatchGesture failed for ${gesture}!")
       }
     }
-
-    activeGestureBuilder = null
   }
 
   private fun dispatchFling(state: JoystickCursorState, dX: Float, dY: Float) {
@@ -506,6 +524,64 @@ class MouseAccessibilityService :
   }
 
   /**
+   * Certain elements in Samsung DeX do not respond to accessibility gestures but do respond to
+   * actions on AccessibilityNodeInfos. This method attempts to determine if the cursor is over such
+   * an element and performs a click action.
+   */
+  private fun performAccessibilityClick(
+    displayInfo: DisplayInfo,
+    pointerX: Int,
+    pointerY: Int
+  ): Boolean {
+    val displayId = displayInfo.displayId
+    val displayWindows = windowsOnAllDisplays[displayId]
+    for (window in displayWindows) {
+      val root = window.root
+      if (root == null) {
+        continue
+      }
+
+      val clickableChild = root.getClickableChildAt(pointerX, pointerY)
+      if (clickableChild == null) {
+        continue
+      }
+
+      Log.d(
+        TAG,
+        "Performing click on clickable accessibility info node at $pointerX $pointerY [ ${clickableChild} ]"
+      )
+      return clickableChild.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
+    return false
+  }
+
+  // Temporary element used while determining whether a cursor is contained by an
+  // AccessibilityNodeInfo. Must not be accessed off the main thread.
+  private val accessibilityNodeInfoScreenBounds = Rect()
+
+  private fun AccessibilityNodeInfo.getClickableChildAt(
+    pointerX: Int,
+    pointerY: Int
+  ): AccessibilityNodeInfo? {
+    getBoundsInScreen(accessibilityNodeInfoScreenBounds)
+    if (!accessibilityNodeInfoScreenBounds.contains(pointerX, pointerY)) {
+      return null
+    }
+
+    for (i in 0 ..< childCount) {
+      getChild(i)?.let { child ->
+        val clickableChild = child.getClickableChildAt(pointerX, pointerY)
+        if (clickableChild != null) {
+          return clickableChild
+        }
+      }
+    }
+
+    return if (isClickable) this else null
+  }
+
+  /**
    * [DisplayManager] enumerates physical displays but in the case of Samsung DEX, the alternate
    * display appears to be a virtual display whose ID does not appear in the [DisplayManager]
    * enumeration. This method uses the accessibility window list to discover all displays with at
@@ -516,7 +592,7 @@ class MouseAccessibilityService :
 
     val displayToWindows = windowsOnAllDisplays
     val numDisplays = displayToWindows.size()
-    Log.d(TAG, "extractDisplaysFromWindows: detected ${numDisplays} with accessibility window info")
+    Log.d(TAG, "extractDisplaysFromWindows: windowsOnAllDisplays.size = ${numDisplays}")
 
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     for (key in displayToWindows.keyIterator()) {
@@ -563,6 +639,9 @@ class MouseAccessibilityService :
     val defaultDisplayContext = getDefaultDisplayContext()
     val detectedDisplayIds = mutableSetOf<Int>()
 
+    displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
+    displayIdToCursorDisplayState.clear()
+
     for (display in extractDisplaysFromWindows()) {
       val context =
         if (display.displayId == Display.DEFAULT_DISPLAY) {
@@ -593,7 +672,6 @@ class MouseAccessibilityService :
     val displayInfoKeys = displayInfos.keys.toSet()
     for (displayId in displayInfoKeys) {
       if (!detectedDisplayIds.contains(displayId)) {
-        displayIdToCursorDisplayState[displayId]?.hide()
         displayInfos.remove(displayId)
       }
     }
@@ -703,7 +781,7 @@ private class CursorDisplayState(
   private val handler: Handler,
   val cursorDisplayTimeoutMilliseconds: Long = 1500L,
   private val onShow: (Int, SurfaceControl) -> Unit,
-) {
+) : Closeable {
   /** The visual state of this cursor. */
   enum class State {
     STATE_RELEASED,
@@ -780,6 +858,11 @@ private class CursorDisplayState(
         State.STATE_PRESSED_SLOW_DRAG to Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
         State.STATE_PRESSED_FLING to Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
       )
+  }
+
+  override fun close() {
+    hide()
+    overlay.close()
   }
 }
 

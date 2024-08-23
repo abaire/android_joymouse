@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PathMeasure
 import android.graphics.PixelFormat
+import android.graphics.PointF
 import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.RectF
@@ -29,7 +30,7 @@ class SwipeVisualization(
   private val height: Int
 
   init {
-    val paths = collectPaths(gestureDescription)
+    val paths = gestureDescription.collectPathsMutable()
     if (paths.isNotEmpty()) {
       addArrowhead(paths)
     }
@@ -39,9 +40,8 @@ class SwipeVisualization(
 
     val totalBounds = measurePaths(paths, outlineStroke)
 
-    val pathMeasure = PathMeasure(paths.first(), false)
-    val origin = FloatArray(2)
-    pathMeasure.getPosTan(0f, origin, null)
+    val origin = PointF()
+    gestureDescription.firstPoint(origin)
 
     // Translate the paths to the origin.
     val dX = -totalBounds.left
@@ -58,8 +58,8 @@ class SwipeVisualization(
       buildSurface(
         surfaceControl,
         paths,
-        originX = origin[0] + dX,
-        originY = origin[1] + dY,
+        originX = origin.x + dX,
+        originY = origin.y + dY,
         width,
         height,
         outlineStroke,
@@ -160,15 +160,6 @@ class SwipeVisualization(
 
         unlockCanvasAndPost(canvas)
       }
-    }
-
-    fun collectPaths(gestureDescription: GestureDescription): MutableList<Path> {
-      val paths = mutableListOf<Path>()
-      for (i in 0 ..< gestureDescription.strokeCount) {
-        val stroke = gestureDescription.getStroke(i)
-        paths.add(stroke.path)
-      }
-      return paths
     }
 
     fun addArrowhead(paths: MutableList<Path>) {
