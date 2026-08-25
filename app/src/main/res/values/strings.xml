@@ -18,6 +18,7 @@
     <string name="operating_instructions_actions_section_left_shift_title">While holding the left trigger:</string>
     <string name="operating_instructions_action_display_backward">• `LEFT SHOULDER`: switch to previous display device</string>
     <string name="operating_instructions_action_display_forward">• `RIGHT SHOULDER`: switch to next display device</string>
+    <string name="operating_instructions_action_cycle_device">• `SELECT`: choose active controller</string>
 
     <string name="operating_instructions_actions_section_right_shift_title">While holding the right trigger:</string>
     <string name="operating_instructions_action_swipe_up">• `DPAD-UP`: `fling up`</string>
@@ -28,10 +29,17 @@
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
     <string name="button_manage_accessibility_settings">Accessibility settings</string>
+    <string name="button_cancel">Cancel</string>
 
     <string name="enable_service_instructions">The JoyMouse service must be enabled in accessibility settings.</string>
     <string name="service_status_enabled">JoyMouse service is enabled</string>
 
     <string name="toast_single_display">Only 1 display available</string>
     <string name="toast_active_display">Active display: %1$d</string>
+    <string name="toast_single_device">Only 1 controller connected</string>
+    <string name="toast_active_device">Active controller: %1$s</string>
+    <string name="controller_fallback_name">Gamepad #%1$d</string>
+    <string name="controller_selection_dialog_title">Select Active Controller</string>
+    <string name="controller_selection_dialog_description">Choose which gamepad controls the mouse cursor.</string>
+    <string name="controller_selection_active_badge">Active</string>
 </resources>

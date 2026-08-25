@@ -88,6 +88,9 @@ fun MainScreen(
       item {
         Text(text = stringResource(id = R.string.operating_instructions_action_display_forward))
       }
+      item {
+        Text(text = stringResource(id = R.string.operating_instructions_action_cycle_device))
+      }
 
       item {
         Text(

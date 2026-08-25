@@ -3,6 +3,7 @@ package work.bearbrains.joymouse
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -40,6 +41,8 @@ import work.bearbrains.joymouse.input.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
 import work.bearbrains.joymouse.input.impl.JoystickButtonProcessorFactoryImpl
 import work.bearbrains.joymouse.input.impl.JoystickCursorStateImpl
+import work.bearbrains.joymouse.model.ControllerInfo
+import work.bearbrains.joymouse.ui.ControllerSelectionActivity
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 import work.bearbrains.joymouse.ui.SwipeVisualization
 import work.bearbrains.joymouse.ui.lastPoint
@@ -64,8 +67,9 @@ class MouseAccessibilityService :
 
   private lateinit var gestureUtil: GestureUtil
 
-  // TODO: activeGestureBuilder should be associated with a joystick state
-  // This would allow multiple cursors to be controlled independently.
+  @androidx.annotation.VisibleForTesting
+  internal var primaryDeviceId: Int? = null
+
   private var activeGestureBuilder: GestureBuilder? = null
   private var pendingLongTouchRunnable: Runnable? = null
 
@@ -74,6 +78,11 @@ class MouseAccessibilityService :
       handler.removeCallbacks(it)
       pendingLongTouchRunnable = null
     }
+  }
+
+  private fun resetGestureState() {
+    cancelPendingLongTouch()
+    activeGestureBuilder = null
   }
 
   private var isEnabled = false
@@ -102,6 +111,8 @@ class MouseAccessibilityService :
     }
 
   public override fun onServiceConnected() {
+    instance = this
+
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
 
@@ -149,7 +160,12 @@ class MouseAccessibilityService :
     closeableOverlays.forEach { it.close() }
     closeableOverlays.clear()
 
-    cancelPendingLongTouch()
+    resetGestureState()
+    primaryDeviceId = null
+    if (instance === this) {
+      instance = null
+    }
+
     handler.removeCallbacksAndMessages(null)
   }
 
@@ -174,8 +190,7 @@ class MouseAccessibilityService :
   }
 
   private fun rebuildDisplays() {
-    cancelPendingLongTouch()
-    activeGestureBuilder = null
+    resetGestureState()
     measureDisplays()
 
     for (joystickId in joystickDeviceIdsToState.keys.toSet()) {
@@ -191,7 +206,9 @@ class MouseAccessibilityService :
 
       if (newDisplayInfo != null) {
         state.updateDisplayInfo(newDisplayInfo)
-        updateCursorPosition(state)
+        if (primaryDeviceId == null || primaryDeviceId == joystickId) {
+          updateCursorPosition(state)
+        }
       }
     }
   }
@@ -203,6 +220,12 @@ class MouseAccessibilityService :
     }
 
     Log.d(TAG, "onKeyEvent: ${event}")
+
+    if (primaryDeviceId == null) {
+      primaryDeviceId = event.deviceId
+    } else if (event.deviceId != primaryDeviceId) {
+      return super.onKeyEvent(event)
+    }
 
     val state = joystickDeviceIdsToState.get(event.deviceId)
     if (state == null) {
@@ -220,6 +243,12 @@ class MouseAccessibilityService :
   public override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
   public override fun onMotionEvent(event: MotionEvent) {
+    if (primaryDeviceId == null) {
+      primaryDeviceId = event.deviceId
+    } else if (event.deviceId != primaryDeviceId) {
+      return
+    }
+
     val state = joystickDeviceIdsToState.get(event.deviceId)
     if (state == null) {
       return
@@ -463,8 +492,7 @@ class MouseAccessibilityService :
       return
     }
 
-    cancelPendingLongTouch()
-    activeGestureBuilder = null
+    resetGestureState()
     displayIdToCursorDisplayState.get(currentDisplayId)?.hide()
     state.updateDisplayInfo(newDisplayInfo)
     updateCursorPosition(state)
@@ -476,10 +504,70 @@ class MouseAccessibilityService :
     ).show()
   }
 
+  fun getConnectedControllers(): List<ControllerInfo> {
+    val inputManager = getSystemService(Context.INPUT_SERVICE) as? InputManager
+    return joystickDeviceIdsToState.keys.sorted().map { deviceId ->
+      val deviceName =
+        inputManager?.getInputDevice(deviceId)?.name
+          ?: getString(R.string.controller_fallback_name, deviceId)
+      ControllerInfo(
+        id = deviceId,
+        name = deviceName,
+        isPrimary = (deviceId == primaryDeviceId),
+      )
+    }
+  }
+
+  fun setPrimaryDevice(deviceId: Int) {
+    if (!joystickDeviceIdsToState.containsKey(deviceId)) {
+      return
+    }
+    if (deviceId == primaryDeviceId) {
+      return
+    }
+
+    resetGestureState()
+    primaryDeviceId = deviceId
+
+    val nextState = joystickDeviceIdsToState[deviceId]
+    if (nextState != null) {
+      updateCursorPosition(nextState)
+      val inputManager = getSystemService(Context.INPUT_SERVICE) as? InputManager
+      val deviceName =
+        inputManager?.getInputDevice(deviceId)?.name
+          ?: getString(R.string.controller_fallback_name, deviceId)
+      Toast.makeText(
+        nextState.displayInfo.context,
+        getString(R.string.toast_active_device, deviceName),
+        Toast.LENGTH_SHORT
+      ).show()
+    }
+  }
+
+  private fun showControllerPicker(state: JoystickCursorState) {
+    val deviceIds = joystickDeviceIdsToState.keys
+    if (deviceIds.size <= 1) {
+      Toast.makeText(state.displayInfo.context, R.string.toast_single_device, Toast.LENGTH_SHORT)
+        .show()
+      return
+    }
+
+    val intent =
+      Intent(this, ControllerSelectionActivity::class.java).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+      }
+    val options = ActivityOptions.makeBasic()
+    options.setLaunchDisplayId(state.displayInfo.displayId)
+    startActivity(intent, options.toBundle())
+  }
+
 
   private fun onAction(state: JoystickCursorState, action: JoystickAction) {
     Log.d(TAG, "onAction ${action} for state ${state}")
     when (action) {
+      JoystickAction.SELECT_PRIMARY_DEVICE -> {
+        showControllerPicker(state)
+      }
       JoystickAction.CYCLE_DISPLAY_FORWARD -> {
         cycleDisplay(state, true)
       }
@@ -501,6 +589,7 @@ class MouseAccessibilityService :
       JoystickAction.TOGGLE_ENABLED -> {
         isEnabled = state.isEnabled
         if (!state.isEnabled) {
+          resetGestureState()
           val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
           if (cursorState == null) {
             Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
@@ -551,6 +640,23 @@ class MouseAccessibilityService :
   override fun onInputDeviceRemoved(deviceId: Int) {
     joystickDeviceIdsToState.get(deviceId)?.close()
     joystickDeviceIdsToState.remove(deviceId)
+
+    if (deviceId == primaryDeviceId) {
+      resetGestureState()
+      primaryDeviceId = joystickDeviceIdsToState.keys.firstOrNull()
+      primaryDeviceId?.let { newPrimaryId ->
+        joystickDeviceIdsToState[newPrimaryId]?.let { newState ->
+          updateCursorPosition(newState)
+          val inputManager = getSystemService(Context.INPUT_SERVICE) as? InputManager
+          val deviceName = inputManager?.getInputDevice(newPrimaryId)?.name ?: newPrimaryId.toString()
+          Toast.makeText(
+            newState.displayInfo.context,
+            getString(R.string.toast_active_device, deviceName),
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      }
+    }
   }
 
   override fun onInputDeviceChanged(deviceId: Int) {
@@ -734,8 +840,7 @@ class MouseAccessibilityService :
     val removedDevices = joystickDeviceIdsToState.keys.toMutableSet()
     removedDevices.removeAll(visitedDevices)
     for (deviceId in removedDevices) {
-      joystickDeviceIdsToState[deviceId]?.close()
-      joystickDeviceIdsToState.remove(deviceId)
+      onInputDeviceRemoved(deviceId)
     }
   }
 
@@ -786,8 +891,8 @@ class MouseAccessibilityService :
     }
   }
 
-  private companion object {
-    const val TAG = "MouseAccessibilityService"
+  companion object {
+    private const val TAG = "MouseAccessibilityService"
 
     val X_AXIS = MotionEvent.AXIS_Z
     val Y_AXIS = MotionEvent.AXIS_RZ
@@ -808,6 +913,9 @@ class MouseAccessibilityService :
         AccessibilityNodeInfo.ACTION_SELECT,
         AccessibilityNodeInfo.ACTION_CLICK,
       )
+
+    var instance: MouseAccessibilityService? = null
+      internal set
   }
 }
 
