@@ -26,12 +26,14 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
   private var lastY = 0f
 
   private var activeSurface: Surface? = null
+  private val transaction = SurfaceControl.Transaction()
 
   override fun close() {
-    SurfaceControl.Transaction()
+    transaction
       .setVisibility(surfaceControl, false)
       .reparent(surfaceControl, null)
       .apply()
+    transaction.close()
     activeSurface?.release()
     activeSurface = null
     surfaceControl.release()
@@ -69,7 +71,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
         activeSurface?.release()
         activeSurface = buildSurface(surfaceControl, vectorDrawable, tintColor)
 
-        SurfaceControl.Transaction()
+        transaction
           .setFrameRate(surfaceControl, 60f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
           .apply()
       }
@@ -78,7 +80,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
   fun draw(x: Float, y: Float) {
     lastX = x
     lastY = y
-    SurfaceControl.Transaction().setPosition(surfaceControl, x, y).apply()
+    transaction.setPosition(surfaceControl, x, y).apply()
   }
 
   private companion object {
