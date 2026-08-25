@@ -2,17 +2,18 @@ package work.bearbrains.joymouse.input
 
 import android.accessibilityservice.GestureDescription
 import android.view.ViewConfiguration
-import kotlin.math.max
 import kotlin.math.sqrt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Provides utilities for the construction of [GestureDescription]s. */
 class GestureUtil(
   viewConfiguration: ViewConfiguration,
   /**
-   * The maximum duration of a gesture, in milliseconds. Generally reported by
+   * The maximum duration of a gesture. Generally reported by
    * [GestureDescription.getMaxGestureDuration()].
    */
-  val maxGestureDuration: Long,
+  val maxGestureDuration: Duration,
 ) {
   // Fling velocity in pixels / second
   private val scaledMinimumFlingVelocity = viewConfiguration.scaledMinimumFlingVelocity
@@ -21,28 +22,26 @@ class GestureUtil(
   private val scaledMaximumFlingVelocity = viewConfiguration.scaledMaximumFlingVelocity
   private val maxFlingVelocityMillisecondsPerPixel = (1f / scaledMaximumFlingVelocity) * 1000f
 
-  /**
-   * The maximum duration, in milliseconds, above which a tap gesture is considered a long press.
-   */
-  val longTouchThresholdMilliseconds = ViewConfiguration.getLongPressTimeout().toLong()
+  /** The maximum duration above which a tap gesture is considered a long press. */
+  val longTouchThreshold: Duration = ViewConfiguration.getLongPressTimeout().milliseconds
 
   /**
-   * Returns the time in milliseconds for a gesture between the given points to be considered a drag
-   * action and not a fling.
+   * Returns the duration for a gesture between the given points to be considered a drag action and
+   * not a fling.
    */
-  fun dragTimeBetween(startX: Float, startY: Float, endX: Float, endY: Float): Long {
+  fun dragTimeBetween(startX: Float, startY: Float, endX: Float, endY: Float): Duration {
     val dist = distance(startX, startY, endX, endY)
-    val minFlingTime = (dist * minFlingVelocityMillisecondsPerPixel).toLong()
-    return max(minFlingTime - 10L, 1L)
+    val minFlingTimeMillis = (dist * minFlingVelocityMillisecondsPerPixel).toLong()
+    return (minFlingTimeMillis + 10L).milliseconds.coerceIn(1.milliseconds, maxGestureDuration)
   }
 
   /**
-   * Returns the time in milliseconds for a gesture between the given points to be considered a
-   * fling action.
+   * Returns the duration for a gesture between the given points to be considered a fling action.
    */
-  fun flingTimeBetween(startX: Float, startY: Float, endX: Float, endY: Float): Long {
+  fun flingTimeBetween(startX: Float, startY: Float, endX: Float, endY: Float): Duration {
     val dist = distance(startX, startY, endX, endY)
-    return max((dist * maxFlingVelocityMillisecondsPerPixel).toLong(), 1L)
+    val flingTimeMillis = (dist * maxFlingVelocityMillisecondsPerPixel).toLong()
+    return flingTimeMillis.milliseconds.coerceIn(1.milliseconds, maxGestureDuration)
   }
 
   companion object {

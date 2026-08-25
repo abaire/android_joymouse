@@ -8,6 +8,7 @@ import android.view.ViewConfiguration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
+import kotlin.time.Duration.Companion.milliseconds
 import org.junit.Test
 import org.junit.runner.RunWith
 import work.bearbrains.joymouse.DisplayInfo
@@ -21,7 +22,10 @@ import work.bearbrains.joymouse.test.FakeJoystickCursorState
 internal class GestureBuilderImplTest {
   private val context = InstrumentationRegistry.getInstrumentation().targetContext
   private val gestureUtil =
-    GestureUtil(ViewConfiguration.get(context), GestureDescription.getMaxGestureDuration())
+    GestureUtil(
+      ViewConfiguration.get(context),
+      GestureDescription.getMaxGestureDuration().milliseconds
+    )
   private val clock = FakeClock()
   private val displayInfo =
     DisplayInfo(
@@ -48,7 +52,8 @@ internal class GestureBuilderImplTest {
 
     val strokeDescription = result.getStroke(0)
     assertThat(strokeDescription.startTime).isEqualTo(0L)
-    assertThat(strokeDescription.duration).isLessThan(gestureUtil.longTouchThresholdMilliseconds)
+    assertThat(strokeDescription.duration)
+      .isLessThan(gestureUtil.longTouchThreshold.inWholeMilliseconds)
     assertThat(strokeDescription.willContinue()).isFalse()
 
     assertThat(strokeDescription.path.isSinglePoint()).isTrue()

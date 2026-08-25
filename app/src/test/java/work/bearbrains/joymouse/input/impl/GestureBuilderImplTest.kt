@@ -7,12 +7,15 @@ import android.view.ViewConfiguration
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth
 import javax.inject.Provider
+import kotlin.time.Duration.Companion.milliseconds
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.mockito.Mockito.anyInt
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import work.bearbrains.joymouse.DisplayInfo
@@ -22,11 +25,10 @@ import work.bearbrains.joymouse.test.FakeClock
 import work.bearbrains.joymouse.test.FakeJoystickCursorState
 
 @RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE)
+@Config(sdk = [34])
 internal class GestureBuilderImplTest {
   private val context: Context = ApplicationProvider.getApplicationContext()
-  private val gestureUtil =
-    GestureUtil(ViewConfiguration.get(context), MOCK_MAX_GESTURE_DURATION_MILLISECONDS)
+  private val gestureUtil = GestureUtil(ViewConfiguration.get(context), MOCK_MAX_GESTURE_DURATION)
   private val clock = FakeClock()
 
   private val gestureDescriptionBuilderProvider =
@@ -61,7 +63,7 @@ internal class GestureBuilderImplTest {
         clock,
         gestureDescriptionBuilderProvider,
       )
-    clock.advanceMilliseconds(gestureUtil.longTouchThresholdMilliseconds)
+    clock.advanceMilliseconds(gestureUtil.longTouchThreshold.inWholeMilliseconds)
 
     Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.LONG_TOUCH)
   }
@@ -102,7 +104,7 @@ internal class GestureBuilderImplTest {
         pointerY = GestureBuilder.MIN_DRAG_DISTANCE - 1f
       )
     )
-    clock.advanceMilliseconds(gestureUtil.longTouchThresholdMilliseconds)
+    clock.advanceMilliseconds(gestureUtil.longTouchThreshold.inWholeMilliseconds)
 
     Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.LONG_TOUCH)
   }
@@ -211,7 +213,76 @@ internal class GestureBuilderImplTest {
     Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.TOUCH)
   }
 
+  @Test
+  fun endGesture_forDragWithLargeDistance_clampsStrokeDurationToMaxGestureDuration() {
+    val builderMock =
+      mock<GestureDescription.Builder> {
+        on { setDisplayId(anyInt()) } doAnswer Mockito.RETURNS_SELF
+      }
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        { builderMock },
+      )
+    sut.cursorMove(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = 100_000f,
+      )
+    )
+    sut.endGesture(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = 100_000f,
+      )
+    )
+
+    val strokeCaptor = argumentCaptor<GestureDescription.StrokeDescription>()
+    verify(builderMock).addStroke(strokeCaptor.capture())
+    Truth.assertThat(strokeCaptor.firstValue.duration)
+      .isAtMost(MOCK_MAX_GESTURE_DURATION.inWholeMilliseconds)
+  }
+
+  @Test
+  fun endGesture_forFlingWithLargeDistance_clampsStrokeDurationToMaxGestureDuration() {
+    val builderMock =
+      mock<GestureDescription.Builder> {
+        on { setDisplayId(anyInt()) } doAnswer Mockito.RETURNS_SELF
+      }
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        { builderMock },
+      )
+    sut.dragIsFling = true
+    sut.cursorMove(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = 100_000f,
+      )
+    )
+    sut.endGesture(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = 100_000f,
+      )
+    )
+
+    val strokeCaptor = argumentCaptor<GestureDescription.StrokeDescription>()
+    verify(builderMock).addStroke(strokeCaptor.capture())
+    Truth.assertThat(strokeCaptor.firstValue.duration)
+      .isAtMost(MOCK_MAX_GESTURE_DURATION.inWholeMilliseconds)
+  }
+
   private companion object {
-    const val MOCK_MAX_GESTURE_DURATION_MILLISECONDS = 2000L
+    val MOCK_MAX_GESTURE_DURATION = 2000.milliseconds
   }
 }

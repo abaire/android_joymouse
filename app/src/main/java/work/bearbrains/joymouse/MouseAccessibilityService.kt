@@ -28,6 +28,7 @@ import androidx.core.util.keyIterator
 import java.io.Closeable
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 import work.bearbrains.joymouse.impl.NanoClockImpl
 import work.bearbrains.joymouse.input.GestureBuilder
 import work.bearbrains.joymouse.input.GestureUtil
@@ -94,7 +95,10 @@ class MouseAccessibilityService :
     displayManager.registerDisplayListener(this, handler)
 
     gestureUtil =
-      GestureUtil(ViewConfiguration.get(this), GestureDescription.getMaxGestureDuration())
+      GestureUtil(
+        ViewConfiguration.get(this),
+        GestureDescription.getMaxGestureDuration().milliseconds
+      )
 
     isEnabled = true
 
@@ -250,7 +254,7 @@ class MouseAccessibilityService :
 
       handler.postDelayed(
         { updateCursorDisplayState(cursorState) },
-        gestureUtil.longTouchThresholdMilliseconds
+        gestureUtil.longTouchThreshold.inWholeMilliseconds
       )
     } else {
       cursorState.currentState = CursorDisplayState.State.STATE_RELEASED
@@ -345,7 +349,9 @@ class MouseAccessibilityService :
               lineTo(endX, endY)
             },
             1L,
-            gestureUtil.flingTimeBetween(state.pointerX, state.pointerY, endX, endY),
+            gestureUtil
+              .flingTimeBetween(state.pointerX, state.pointerY, endX, endY)
+              .inWholeMilliseconds,
             false,
           )
         )
