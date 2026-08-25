@@ -606,7 +606,7 @@ class MouseAccessibilityService :
         Log.d(TAG, "  Display ${key}: ${it}")
 
         if (displayToWindows[key].isEmpty()) {
-          Log.i(TAG, "Ignoring display ${key} with no accessibility window info ($it})")
+          Log.i(TAG, "Ignoring display ${key} with no accessibility window info (${it})")
           return@let
         }
 
