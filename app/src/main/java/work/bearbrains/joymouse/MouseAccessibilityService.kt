@@ -547,7 +547,7 @@ class MouseAccessibilityService :
     pointerY: Int
   ): Boolean {
     val displayId = displayInfo.displayId
-    val displayWindows = windowsOnAllDisplays[displayId]
+    val displayWindows = windowsOnAllDisplays[displayId] ?: return false
     for (window in displayWindows) {
       val root = window.root
       if (root == null) {
@@ -640,7 +640,7 @@ class MouseAccessibilityService :
     val rootNode = rootWindow.root
 
     for (actionToPerform in SELECT_DISPLAY_ACTIONS) {
-      if (rootNode.performAction(actionToPerform)) {
+      if (rootNode?.performAction(actionToPerform) == true) {
         return true
       }
     }
