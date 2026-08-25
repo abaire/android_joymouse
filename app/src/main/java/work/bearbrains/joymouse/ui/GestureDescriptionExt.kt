@@ -23,15 +23,13 @@ fun GestureDescription.firstPoint(point: PointF): Boolean {
   }
 
   val firstPath = getStroke(0).path
-  if (!firstPath.pathIterator.hasNext()) {
+  val verbs = firstPath.pathIterator
+  if (!verbs.hasNext()) {
     return false
   }
 
-  val firstSegment = firstPath.pathIterator.next()
-  val points = firstSegment.points
-  if (points.isEmpty()) {
-    return false
-  }
+  val points = FloatArray(8)
+  verbs.next(points, 0)
 
   point.x = points[0]
   point.y = points[1]
