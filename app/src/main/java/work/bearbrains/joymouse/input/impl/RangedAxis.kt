@@ -1,4 +1,4 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input.impl
 
 import android.view.InputDevice
 import android.view.MotionEvent

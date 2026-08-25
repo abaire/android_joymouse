@@ -7,7 +7,6 @@ import org.junit.Test
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import work.bearbrains.joymouse.RangedAxis
 
 internal class RangedAxisTest {
 

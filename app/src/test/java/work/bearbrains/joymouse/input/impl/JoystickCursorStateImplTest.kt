@@ -15,9 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.whenever
 import org.robolectric.annotation.Config
-import work.bearbrains.joymouse.ButtonAxis
 import work.bearbrains.joymouse.DisplayInfo
-import work.bearbrains.joymouse.JoystickCursorStateImpl
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.test.FakeClock

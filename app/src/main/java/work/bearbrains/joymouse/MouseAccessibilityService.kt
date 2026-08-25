@@ -37,6 +37,7 @@ import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.input.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
 import work.bearbrains.joymouse.input.impl.JoystickButtonProcessorFactoryImpl
+import work.bearbrains.joymouse.input.impl.JoystickCursorStateImpl
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 import work.bearbrains.joymouse.ui.SwipeVisualization
 import work.bearbrains.joymouse.ui.lastPoint
