@@ -336,7 +336,7 @@ class MouseAccessibilityService :
     val endY = (state.pointerY + dY).coerceIn(0f, state.displayInfo.windowHeight)
     if (
       (endX - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE &&
-        (endY - state.pointerX).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE
+        (endY - state.pointerY).absoluteValue < GestureBuilder.MIN_DRAG_DISTANCE
     ) {
       Log.d(TAG, "Ignoring short swipe: ${state.pointerX}, ${state.pointerY} -> $endX, $endY")
       return
