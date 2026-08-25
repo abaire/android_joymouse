@@ -11,7 +11,7 @@ plugins {
 ktfmt { googleStyle() }
 
 tasks.register<KtfmtFormatTask>("ktfmtPrecommit") {
-  source = project.fileTree(rootDir)
+  source = project.fileTree(projectDir)
   include("**/*.kt")
 }
 
