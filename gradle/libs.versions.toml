@@ -45,7 +45,6 @@ javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "j
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 ncorti-ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
 android-library = { id = "com.android.library", version.ref = "agp" }

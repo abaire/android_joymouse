@@ -2,10 +2,9 @@ import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
 
 plugins {
   alias(libs.plugins.android.application)
-  alias(libs.plugins.jetbrains.kotlin.android)
 
   alias(libs.plugins.ncorti.ktfmt)
-    alias(libs.plugins.kotlin.compose)
+  alias(libs.plugins.kotlin.compose)
 }
 
 ktfmt { googleStyle() }
@@ -38,14 +37,12 @@ android {
 
   buildFeatures {
     compose = true
+    resValues = true
   }
 
-    compileOptions {
+  compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
-  }
-  kotlinOptions {
-    jvmTarget = "17"
   }
 }
 
