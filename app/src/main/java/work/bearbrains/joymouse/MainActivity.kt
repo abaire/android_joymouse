@@ -62,9 +62,4 @@ class MainActivity : ComponentActivity() {
       }
     }
   }
-
-  override fun onResume() {
-    super.onResume()
-    startService(Intent(this, MouseAccessibilityService::class.java))
-  }
 }

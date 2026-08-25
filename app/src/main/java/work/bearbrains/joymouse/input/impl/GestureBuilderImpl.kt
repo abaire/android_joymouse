@@ -4,6 +4,7 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.util.Log
 import javax.inject.Provider
+import kotlin.time.Duration.Companion.milliseconds
 import work.bearbrains.joymouse.NanoClock
 import work.bearbrains.joymouse.input.GestureBuilder
 import work.bearbrains.joymouse.input.GestureUtil
@@ -43,7 +44,7 @@ internal class GestureBuilderImpl(
     get() {
       if (_action == GestureBuilder.Action.TOUCH) {
         val elapsedMilliseconds = clock.nanoTime().toGestureTimeMillis()
-        if (elapsedMilliseconds >= gestureUtil.longTouchThresholdMilliseconds) {
+        if (elapsedMilliseconds >= gestureUtil.longTouchThreshold.inWholeMilliseconds) {
           _action = GestureBuilder.Action.LONG_TOUCH
         }
       }
@@ -59,22 +60,22 @@ internal class GestureBuilderImpl(
     val now = clock.nanoTime()
 
     val startTime = 0L
-    val endTime =
+    val duration =
       when (toMotionAction(state)) {
         GestureBuilder.Action.DRAG ->
           gestureUtil.dragTimeBetween(initialX, initialY, state.pointerX, state.pointerY)
         GestureBuilder.Action.FLING ->
           gestureUtil.flingTimeBetween(initialX, initialY, state.pointerX, state.pointerY)
-        else -> now.toGestureTimeMillis().coerceIn(1, gestureUtil.maxGestureDuration)
-      }
+        else -> now.toGestureTimeMillis().milliseconds
+      }.coerceIn(1.milliseconds, gestureUtil.maxGestureDuration)
 
     Log.d(
       TAG,
-      "Ending gesture with segment ${lastEventX}, ${lastEventY} to ${state.pointerX}, ${state.pointerY} from ${startTime} ms to ${endTime} ms"
+      "Ending gesture with segment ${lastEventX}, ${lastEventY} to ${state.pointerX}, ${state.pointerY} from ${startTime} ms for ${duration.inWholeMilliseconds} ms"
     )
 
     builder.addStroke(
-      GestureDescription.StrokeDescription(state.pathTo(), startTime, endTime - startTime)
+      GestureDescription.StrokeDescription(state.pathTo(), startTime, duration.inWholeMilliseconds)
     )
 
     lastEventTimestamp = now

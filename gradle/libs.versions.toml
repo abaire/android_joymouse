@@ -1,6 +1,6 @@
 [versions]
-agp = "8.13.2"
-kotlin = "1.9.25"
+agp = "9.3.2"
+kotlin = "2.2.10"
 coreKtx = "1.13.1"
 appcompat = "1.7.0"
 
@@ -45,7 +45,7 @@ javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "j
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 ncorti-ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
 android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -7,7 +7,8 @@ check_no_diffmarkers_or_whitespace_errors() {
   set +e
 }
 
-check_no_donotsubmit() {
+check_no_do_not_submit() {
+  local tag="DO""NOT""SUBMIT"
   local filenames="$1"
 
   if [[ -z "${filenames}" ]]; then
@@ -15,13 +16,13 @@ check_no_donotsubmit() {
   fi
 
   set +e
-  output="$(grep -H -ni 'DONOTSUBMIT' -- "$1" 2>/dev/null)"
+  output="$(echo "${filenames}" | xargs grep -H -ni "${tag}" -- 2>/dev/null)"
   found=$?
   set -e
 
   if [[ $found -eq 0 ]]; then
     echo "${output}"
-    echo "DONOTSUBMIT tag found, aborting"
+    echo "${tag} tag found, aborting"
     exit 1
   fi
 }
@@ -40,11 +41,16 @@ readonly added_and_modified_filenames="$(git diff --cached --name-only --diff-fi
 readonly changed_kt_filenames="$(echo "${added_and_modified_filenames}" | grep -E '.*\.(kt)$')"
 
 function run_ktfmt() {
+  if [[ -z "${changed_kt_filenames}" ]]; then
+    return
+  fi
   files_to_format="$(echo "${changed_kt_filenames}" | grep -v '3rdparty')"
-  ./gradlew ktfmtPreCommit
-  echo "${files_to_format}" | xargs git add
+  if [[ -n "${files_to_format}" ]]; then
+    ./gradlew ktfmtPrecommit
+    echo "${files_to_format}" | xargs git add
+  fi
 }
 
 run_ktfmt
-check_no_donotsubmit "${added_and_modified_filenames}"
+check_no_do_not_submit "${added_and_modified_filenames}"
 check_no_diffmarkers_or_whitespace_errors "${against}"
