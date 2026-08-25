@@ -1,5 +1,6 @@
 package work.bearbrains.joymouse.input
 
+import android.graphics.Color
 import android.view.KeyEvent
 import android.view.MotionEvent
 import org.json.JSONArray
@@ -42,6 +43,123 @@ enum class MouseStick(val xAxis: Int, val yAxis: Int) {
     }
 }
 
+/** Palette options for cursor display states. */
+enum class CursorPalette {
+  DEFAULT,
+  COLORBLIND_FRIENDLY,
+  CUSTOM;
+
+  fun getDisplayName(): String =
+    when (this) {
+      DEFAULT -> "Default"
+      COLORBLIND_FRIENDLY -> "Colorblind friendly"
+      CUSTOM -> "Custom"
+    }
+}
+
+/** Specific colors associated with each cursor display state. */
+data class CursorColors(
+  val released: Int = COLOR_WHITE,
+  val tap: Int = COLOR_TAP,
+  val longTouch: Int = COLOR_LONG_TOUCH,
+  val drag: Int = COLOR_DRAG,
+  val fling: Int = COLOR_FLING,
+) {
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("released", released)
+    json.put("tap", tap)
+    json.put("longTouch", longTouch)
+    json.put("drag", drag)
+    json.put("fling", fling)
+    return json
+  }
+
+  companion object {
+    const val COLOR_WHITE = 0xFFFFFFFF.toInt()
+    const val COLOR_TAP = 0xFFC8E1FF.toInt()
+    const val COLOR_LONG_TOUCH = 0xFF4CD964.toInt()
+    const val COLOR_DRAG = 0xFF2196F3.toInt()
+    const val COLOR_FLING = 0xFFFF4081.toInt()
+
+    const val COLOR_CB_YELLOW = 0xFFF0E442.toInt()
+    const val COLOR_CB_GREEN = 0xFF009E73.toInt()
+    const val COLOR_CB_BLUE = 0xFF0072B2.toInt()
+    const val COLOR_CB_VERMILLION = 0xFFD55E00.toInt()
+
+    val DEFAULT =
+      CursorColors(
+        released = COLOR_WHITE,
+        tap = COLOR_TAP,
+        longTouch = COLOR_LONG_TOUCH,
+        drag = COLOR_DRAG,
+        fling = COLOR_FLING,
+      )
+
+    val COLORBLIND_FRIENDLY =
+      CursorColors(
+        released = COLOR_WHITE,
+        tap = COLOR_CB_YELLOW,
+        longTouch = COLOR_CB_GREEN,
+        drag = COLOR_CB_BLUE,
+        fling = COLOR_CB_VERMILLION,
+      )
+
+    fun fromJson(json: JSONObject): CursorColors {
+      return CursorColors(
+        released = json.optInt("released", COLOR_WHITE),
+        tap = json.optInt("tap", COLOR_TAP),
+        longTouch = json.optInt("longTouch", COLOR_LONG_TOUCH),
+        drag = json.optInt("drag", COLOR_DRAG),
+        fling = json.optInt("fling", COLOR_FLING),
+      )
+    }
+  }
+}
+
+/** Configuration for mouse cursor appearance, color palette, and mode shape indicator. */
+data class CursorConfig(
+  val palette: CursorPalette = CursorPalette.DEFAULT,
+  val customColors: CursorColors = CursorColors.DEFAULT,
+  val changeShapeForMode: Boolean = false,
+) {
+  fun getColors(): CursorColors =
+    when (palette) {
+      CursorPalette.DEFAULT -> CursorColors.DEFAULT
+      CursorPalette.COLORBLIND_FRIENDLY -> CursorColors.COLORBLIND_FRIENDLY
+      CursorPalette.CUSTOM -> customColors
+    }
+
+  fun toJson(): JSONObject {
+    val json = JSONObject()
+    json.put("palette", palette.name)
+    json.put("customColors", customColors.toJson())
+    json.put("changeShapeForMode", changeShapeForMode)
+    return json
+  }
+
+  companion object {
+    val DEFAULT = CursorConfig()
+
+    fun fromJson(json: JSONObject): CursorConfig {
+      val palette =
+        try {
+          CursorPalette.valueOf(json.optString("palette", CursorPalette.DEFAULT.name))
+        } catch (_: Exception) {
+          CursorPalette.DEFAULT
+        }
+      val customColors =
+        json.optJSONObject("customColors")?.let { CursorColors.fromJson(it) } ?: CursorColors.DEFAULT
+      val changeShapeForMode = json.optBoolean("changeShapeForMode", false)
+      return CursorConfig(
+        palette = palette,
+        customColors = customColors,
+        changeShapeForMode = changeShapeForMode,
+      )
+    }
+  }
+}
+
 /** Describes how a [JoystickAction] is bound to a physical button or button combination. */
 data class ActionBinding(
   val modifier: ShiftModifier = ShiftModifier.NONE,
@@ -79,7 +197,7 @@ data class ActionBinding(
   }
 }
 
-/** Configuration mapping special [JoystickAction]s, shift/alt modifier buttons, mouse stick, and toggle chord. */
+/** Configuration mapping special [JoystickAction]s, shift/alt modifier buttons, mouse stick, cursor appearance, and toggle chord. */
 data class ActionConfig(
   val actionBindings: Map<JoystickAction, ActionBinding> = DEFAULT_ACTION_BINDINGS,
   val toggleChord: Set<Int> = DEFAULT_TOGGLE_CHORD,
@@ -88,6 +206,7 @@ data class ActionConfig(
   val mouseStick: MouseStick = DEFAULT_MOUSE_STICK,
   val invertX: Boolean = false,
   val invertY: Boolean = false,
+  val cursorConfig: CursorConfig = CursorConfig.DEFAULT,
 ) {
 
   init {
@@ -113,6 +232,7 @@ data class ActionConfig(
     json.put("mouseStick", mouseStick.name)
     json.put("invertX", invertX)
     json.put("invertY", invertY)
+    json.put("cursorConfig", cursorConfig.toJson())
 
     return json.toString()
   }
@@ -255,6 +375,9 @@ data class ActionConfig(
         val invertX = json.optBoolean("invertX", false)
         val invertY = json.optBoolean("invertY", false)
 
+        val cursorConfig =
+          json.optJSONObject("cursorConfig")?.let { CursorConfig.fromJson(it) } ?: CursorConfig.DEFAULT
+
         ActionConfig(
           actionBindings = bindingsMap,
           toggleChord = toggleChord,
@@ -263,6 +386,7 @@ data class ActionConfig(
           mouseStick = mouseStick,
           invertX = invertX,
           invertY = invertY,
+          cursorConfig = cursorConfig,
         )
       } catch (_: Exception) {
         DEFAULT

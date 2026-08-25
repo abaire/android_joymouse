@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28.1395dp"
+    android:height="23.648dp"
+    android:viewportWidth="56.279"
+    android:viewportHeight="47.296">
+  <!-- Exactly symmetric 4-way pan / drag cursor matching the long press size (span 41.0) -->
+  <path
+      android:pathData="M 28.14,3.15 L 34.64,10.15 L 30.64,10.15 L 30.64,21.15 L 41.64,21.15 L 41.64,17.15 L 48.64,23.65 L 41.64,30.15 L 41.64,26.15 L 30.64,26.15 L 30.64,37.15 L 34.64,37.15 L 28.14,44.15 L 21.64,37.15 L 25.64,37.15 L 25.64,26.15 L 14.64,26.15 L 14.64,30.15 L 7.64,23.65 L 14.64,17.15 L 14.64,21.15 L 25.64,21.15 L 25.64,10.15 L 21.64,10.15 Z"
+      android:strokeWidth="2.8"
+      android:strokeLineJoin="round"
+      android:strokeLineCap="round"
+      android:fillColor="#ffffff"
+      android:strokeColor="#000000"/>
+  <!-- Central circle matching long press center -->
+  <path
+      android:pathData="M 28.14,18.65 A 5,5 0 1,0 28.14,28.65 A 5,5 0 1,0 28.14,18.65 Z"
+      android:strokeWidth="2.5"
+      android:fillColor="#ffffff"
+      android:strokeColor="#000000"/>
+</vector>

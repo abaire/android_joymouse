@@ -232,4 +232,44 @@ class ActionConfigTest {
     val invertBoth = ActionConfig(mouseStick = MouseStick.RIGHT_STICK, invertX = true, invertY = true)
     assertThat(ActionConfig.getMouseControlDisplayName(invertBoth)).isEqualTo("Right thumbstick (Invert X, Invert Y)")
   }
+
+  @Test
+  fun defaultCursorConfig_usesDefaultPaletteAndNormalShapes() {
+    val config = ActionConfig.DEFAULT
+    assertThat(config.cursorConfig.palette).isEqualTo(CursorPalette.DEFAULT)
+    assertThat(config.cursorConfig.changeShapeForMode).isFalse()
+    assertThat(config.cursorConfig.getColors()).isEqualTo(CursorColors.DEFAULT)
+  }
+
+  @Test
+  fun cursorConfig_colorblindFriendlyPalette_returnsAccessibleColors() {
+    val config = CursorConfig(palette = CursorPalette.COLORBLIND_FRIENDLY)
+    assertThat(config.getColors()).isEqualTo(CursorColors.COLORBLIND_FRIENDLY)
+  }
+
+  @Test
+  fun cursorConfig_customColors_roundtripThroughJson() {
+    val customColors =
+      CursorColors(
+        released = android.graphics.Color.YELLOW,
+        tap = android.graphics.Color.CYAN,
+        longTouch = android.graphics.Color.GREEN,
+        drag = android.graphics.Color.MAGENTA,
+        fling = android.graphics.Color.RED,
+      )
+    val customCursorConfig =
+      CursorConfig(
+        palette = CursorPalette.CUSTOM,
+        customColors = customColors,
+        changeShapeForMode = true,
+      )
+    val actionConfig = ActionConfig(cursorConfig = customCursorConfig)
+
+    val jsonString = actionConfig.toJson()
+    val restored = ActionConfig.fromJson(jsonString)
+
+    assertThat(restored.cursorConfig.palette).isEqualTo(CursorPalette.CUSTOM)
+    assertThat(restored.cursorConfig.changeShapeForMode).isTrue()
+    assertThat(restored.cursorConfig.getColors()).isEqualTo(customColors)
+  }
 }

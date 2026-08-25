@@ -31,7 +31,7 @@
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
     <string name="button_manage_accessibility_settings">Accessibility settings</string>
-    <string name="button_configure_actions">Configure button actions</string>
+    <string name="button_configure_actions">Configure &amp; customize</string>
     <string name="button_cancel">Cancel</string>
     <string name="button_save">Save</string>
     <string name="button_reset">Reset</string>
@@ -96,4 +96,28 @@
     <string name="controller_selection_dialog_title">Select active controller</string>
     <string name="controller_selection_dialog_description">Choose which gamepad controls the mouse cursor.</string>
     <string name="controller_selection_active_badge">Active</string>
+
+    <string name="config_section_cursor">Cursor</string>
+    <string name="config_cursor_appearance_title">Cursor appearance</string>
+    <string name="config_cursor_palette_title">Color palette</string>
+    <string name="config_cursor_palette_default">Default</string>
+    <string name="config_cursor_palette_colorblind">Colorblind friendly</string>
+    <string name="config_cursor_palette_custom">Custom</string>
+    <string name="config_cursor_shape_mode_title">Change shape by gesture mode</string>
+    <string name="config_cursor_shape_mode_summary">Changes cursor icon shape to indicate tap, drag, fling, or long press</string>
+    <string name="config_cursor_dialog_title">Cursor settings</string>
+    <string name="config_cursor_state_released">Default pointer</string>
+    <string name="config_cursor_state_tap">Tap</string>
+    <string name="config_cursor_state_long_touch">Long press</string>
+    <string name="config_cursor_state_drag">Drag</string>
+    <string name="config_cursor_state_fling">Fling</string>
+    <string name="config_cursor_pick_color_title">Select color for %1$s</string>
+    <string name="config_cursor_info_title">Cursor settings</string>
+    <string name="config_cursor_info_description">Customize the cursor appearance, color palette, and visual indicators for gesture modes.</string>
+    <string name="config_info_cursor_content_description">Cursor help</string>
+    <string name="config_cursor_hex_label">Hex color</string>
+    <string name="config_cursor_presets_label">Presets</string>
+    <string name="config_cursor_red_slider">Red: %1$d</string>
+    <string name="config_cursor_green_slider">Green: %1$d</string>
+    <string name="config_cursor_blue_slider">Blue: %1$d</string>
 </resources>

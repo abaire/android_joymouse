@@ -35,6 +35,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import work.bearbrains.joymouse.impl.NanoClockImpl
 import work.bearbrains.joymouse.input.ActionConfig
 import work.bearbrains.joymouse.input.ActionConfigRepository
+import work.bearbrains.joymouse.input.CursorConfig
 import work.bearbrains.joymouse.input.GestureBuilder
 import work.bearbrains.joymouse.input.GestureUtil
 import work.bearbrains.joymouse.input.JoystickAction
@@ -121,6 +122,7 @@ class MouseAccessibilityService :
     actionConfigRepository = ActionConfigRepository(this)
     actionConfigCloseable = actionConfigRepository.registerListener { newConfig ->
       joystickDeviceIdsToState.values.forEach { it.updateActionConfig(newConfig) }
+      displayIdToCursorDisplayState.values.forEach { it.updateCursorConfig(newConfig.cursorConfig) }
     }
 
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
@@ -327,7 +329,7 @@ class MouseAccessibilityService :
           NanoClockImpl(),
           gestureDescriptionBuilderProvider = GestureDescriptionBuilderProvider,
         )
-      cursorState.currentState = CursorDisplayState.State.STATE_PRESSED_TAP
+      cursorState.currentState = CursorAccessibilityOverlay.State.STATE_PRESSED_TAP
 
       val runnable = Runnable {
         pendingLongTouchRunnable = null
@@ -340,7 +342,7 @@ class MouseAccessibilityService :
       )
     } else {
       cancelPendingLongTouch()
-      cursorState.currentState = CursorDisplayState.State.STATE_RELEASED
+      cursorState.currentState = CursorAccessibilityOverlay.State.STATE_RELEASED
       activeGestureBuilder?.endGesture(state)
       dispatchPendingGesture()
       cursorState.restartHider()
@@ -825,7 +827,13 @@ class MouseAccessibilityService :
       detectedDisplayIds.add(display.displayId)
 
       if (!displayIdToCursorDisplayState.containsKey(display.displayId)) {
-        val cursorOverlay = CursorAccessibilityOverlay(info)
+        val config =
+          if (::actionConfigRepository.isInitialized) {
+            actionConfigRepository.getConfig()
+          } else {
+            ActionConfig.DEFAULT
+          }
+        val cursorOverlay = CursorAccessibilityOverlay(info, config.cursorConfig)
         displayIdToCursorDisplayState[display.displayId] =
           CursorDisplayState(cursorOverlay, handler, onShow = ::attachAccessibilityOverlayToDisplay)
       }
@@ -957,30 +965,24 @@ private class CursorDisplayState(
   val cursorDisplayTimeoutMilliseconds: Long = 1500L,
   private val onShow: (Int, SurfaceControl) -> Unit,
 ) : Closeable {
-  /** The visual state of this cursor. */
-  enum class State {
-    STATE_RELEASED,
-    STATE_PRESSED_TAP,
-    STATE_PRESSED_LONG_TOUCH,
-    STATE_PRESSED_SLOW_DRAG,
-    STATE_PRESSED_FLING,
-  }
-
   /** Whether or not the cursor overlay is currently displayed. */
   var isShown: Boolean = false
     private set
 
   /** Tracks the current display state of this cursor. */
-  var currentState: State = State.STATE_RELEASED
+  var currentState: CursorAccessibilityOverlay.State = CursorAccessibilityOverlay.State.STATE_RELEASED
     set(value) {
       if (value == field) {
         return
       }
 
       field = value
-      // Safe as long as TINT_MAP is always kept in sync with the [State] enumeration.
-      overlay.tintColor = TINT_MAP[value]!!
+      overlay.cursorState = value
     }
+
+  fun updateCursorConfig(config: CursorConfig) {
+    overlay.cursorConfig = config
+  }
 
   private val hider =
     object : Runnable {
@@ -1031,15 +1033,6 @@ private class CursorDisplayState(
 
   private companion object {
     const val TAG = "CursorDisplayState"
-
-    val TINT_MAP =
-      mapOf(
-        State.STATE_RELEASED to Color.WHITE,
-        State.STATE_PRESSED_TAP to Color.rgb(200, 225, 255),
-        State.STATE_PRESSED_LONG_TOUCH to Color.rgb(76, 217, 100),
-        State.STATE_PRESSED_SLOW_DRAG to Color.rgb(33, 150, 243),
-        State.STATE_PRESSED_FLING to Color.rgb(255, 64, 129),
-      )
   }
 
   override fun close() {
@@ -1048,10 +1041,10 @@ private class CursorDisplayState(
   }
 }
 
-private fun GestureBuilder.Action.toCursorState(): CursorDisplayState.State =
+private fun GestureBuilder.Action.toCursorState(): CursorAccessibilityOverlay.State =
   when (this) {
-    GestureBuilder.Action.TOUCH -> CursorDisplayState.State.STATE_PRESSED_TAP
-    GestureBuilder.Action.LONG_TOUCH -> CursorDisplayState.State.STATE_PRESSED_LONG_TOUCH
-    GestureBuilder.Action.DRAG -> CursorDisplayState.State.STATE_PRESSED_SLOW_DRAG
-    GestureBuilder.Action.FLING -> CursorDisplayState.State.STATE_PRESSED_FLING
+    GestureBuilder.Action.TOUCH -> CursorAccessibilityOverlay.State.STATE_PRESSED_TAP
+    GestureBuilder.Action.LONG_TOUCH -> CursorAccessibilityOverlay.State.STATE_PRESSED_LONG_TOUCH
+    GestureBuilder.Action.DRAG -> CursorAccessibilityOverlay.State.STATE_PRESSED_SLOW_DRAG
+    GestureBuilder.Action.FLING -> CursorAccessibilityOverlay.State.STATE_PRESSED_FLING
   }
