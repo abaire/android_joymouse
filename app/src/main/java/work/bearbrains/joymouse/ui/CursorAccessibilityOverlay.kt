@@ -38,6 +38,9 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
   @ColorInt
   var tintColor = Color.WHITE
     set(value) {
+      if (field == value) {
+        return
+      }
       field = value
       activeSurface?.release()
       activeSurface = buildSurface(surfaceControl, vectorDrawable, tintColor)
@@ -89,6 +92,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
 
         val cursorBitmap = createCursorBitmap(vectorDrawable, tintColor)
         canvas.drawBitmap(cursorBitmap, 0f, 0f, null)
+        cursorBitmap.recycle()
 
         unlockCanvasAndPost(canvas)
       }

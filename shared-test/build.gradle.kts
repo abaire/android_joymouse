@@ -34,4 +34,5 @@ ktfmt { googleStyle() }
 tasks.register<KtfmtFormatTask>("ktfmtPrecommit") {
   source = project.fileTree(projectDir)
   include("**/*.kt")
+  exclude("**/build/**")
 }

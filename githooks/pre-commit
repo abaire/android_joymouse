@@ -44,9 +44,12 @@ function run_ktfmt() {
   if [[ -z "${changed_kt_filenames}" ]]; then
     return
   fi
-  files_to_format="$(echo "${changed_kt_filenames}" | grep -v '3rdparty')"
+  files_to_format="$(echo "${changed_kt_filenames}" | grep -v '3rdparty' || true)"
   if [[ -n "${files_to_format}" ]]; then
-    ./gradlew ktfmtPrecommit
+    if ! ./gradlew ktfmtPrecommit; then
+      echo "ktfmtPrecommit failed, aborting commit"
+      exit 1
+    fi
     echo "${files_to_format}" | xargs git add
   fi
 }
