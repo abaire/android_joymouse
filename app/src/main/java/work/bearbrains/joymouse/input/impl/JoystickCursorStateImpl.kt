@@ -63,6 +63,7 @@ private constructor(
 
       /** Queues this repeater for future processing. */
       fun restart() {
+        cancel()
         handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
       }
 
