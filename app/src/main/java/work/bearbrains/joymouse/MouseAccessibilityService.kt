@@ -65,6 +65,14 @@ class MouseAccessibilityService :
   // TODO: activeGestureBuilder should be associated with a joystick state
   // This would allow multiple cursors to be controlled independently.
   private var activeGestureBuilder: GestureBuilder? = null
+  private var pendingLongTouchRunnable: Runnable? = null
+
+  private fun cancelPendingLongTouch() {
+    pendingLongTouchRunnable?.let {
+      handler.removeCallbacks(it)
+      pendingLongTouchRunnable = null
+    }
+  }
 
   private var isEnabled = false
     set(value) {
@@ -129,6 +137,7 @@ class MouseAccessibilityService :
     closeableOverlays.forEach { it.close() }
     closeableOverlays.clear()
 
+    cancelPendingLongTouch()
     handler.removeCallbacksAndMessages(null)
 
     return super.onUnbind(intent)
@@ -250,6 +259,7 @@ class MouseAccessibilityService :
     }
 
     if (state.isPrimaryButtonPressed) {
+      cancelPendingLongTouch()
       activeGestureBuilder =
         GestureBuilderImpl(
           state,
@@ -259,11 +269,17 @@ class MouseAccessibilityService :
         )
       cursorState.currentState = CursorDisplayState.State.STATE_PRESSED_TAP
 
+      val runnable = Runnable {
+        pendingLongTouchRunnable = null
+        updateCursorDisplayState(cursorState)
+      }
+      pendingLongTouchRunnable = runnable
       handler.postDelayed(
-        { updateCursorDisplayState(cursorState) },
+        runnable,
         gestureUtil.longTouchThreshold.inWholeMilliseconds
       )
     } else {
+      cancelPendingLongTouch()
       cursorState.currentState = CursorDisplayState.State.STATE_RELEASED
       activeGestureBuilder?.endGesture(state)
       dispatchPendingGesture()
@@ -303,6 +319,7 @@ class MouseAccessibilityService :
 
   /** Dispatches the gesture(s) built up by the [activeGestureBuilder] and resets it. */
   private fun dispatchPendingGesture() {
+    cancelPendingLongTouch()
     activeGestureBuilder?.let { builder ->
       activeGestureBuilder = null
 
@@ -441,6 +458,7 @@ class MouseAccessibilityService :
     state.close()
     displayIdToCursorDisplayState.get(state.displayInfo.displayId)?.hide()
 
+    cancelPendingLongTouch()
     activeGestureBuilder = null
 
     return addJoystickDevice(device, newDisplayInfo).also { updateCursorPosition(it) }
