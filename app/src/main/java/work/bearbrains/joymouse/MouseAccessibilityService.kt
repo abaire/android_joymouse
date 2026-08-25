@@ -124,6 +124,12 @@ class MouseAccessibilityService :
     joystickDeviceIdsToState.clear()
 
     displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
+    displayIdToCursorDisplayState.clear()
+
+    closeableOverlays.forEach { it.close() }
+    closeableOverlays.clear()
+
+    handler.removeCallbacksAndMessages(null)
 
     return super.onUnbind(intent)
   }
