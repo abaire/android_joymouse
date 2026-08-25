@@ -34,4 +34,6 @@ class FakeJoystickCursorState(
     pointerX = (relX * newDisplayInfo.windowWidth).coerceIn(0f, newDisplayInfo.windowWidth)
     pointerY = (relY * newDisplayInfo.windowHeight).coerceIn(0f, newDisplayInfo.windowHeight)
   }
+
+  override fun updateActionConfig(config: work.bearbrains.joymouse.input.ActionConfig) {}
 }

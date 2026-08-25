@@ -3,33 +3,87 @@
     <string name="accessibility_service_summary">Allows a joystick to control a virtual mouse cursor</string>
     <string name="accessibility_service_description">Allows the use of a joystick or gamepad to control a mouse cursor in order to interact with this device.</string>
 
-    <string name="operating_instructions_section_title">Usage:</string>
-    <string name="operating_instructions">Once enabled, moving the right thumbstick will move the mouse cursor. Pressing the left trigger while moving the cursor will cause it to move faster.</string>
-    <string name="operating_instructions_primary_button">Pulling the right trigger will simulate a finger down. If the trigger is released quickly, it will emulate a tap at the cursor position. If the trigger is held and then released, it will act as a long press. If the trigger is held and the cursor is moved it will be interpreted as a drag. If the A button is pressed while dragged, the drag will be toggled to a fling gesture.</string>
-    <string name="operating_instructions_toggle_chord">Pressing `LEFT SHOULDER` + `RIGHT SHOULDER` + `X` will toggle the virtual mouse on and off. While the mouse is enabled, joystick events will not be passed on to other applications.</string>
+    <string name="operating_instructions_section_title">Usage</string>
+    <string name="operating_instructions_movement_template">Once enabled, moving the %1$s will move the mouse cursor. Pressing the %2$s while moving the cursor will cause it to move faster.</string>
+    <string name="operating_instructions_activate_template">Pressing %1$s will activate at the cursor position (tap, long press, or drag). Pressing %2$s while dragging will toggle between a drag and fling gesture.</string>
+    <string name="operating_instructions_toggle_chord_template">Pressing %1$s will toggle the virtual mouse on and off. While the mouse is enabled, joystick events will not be passed on to other applications.</string>
+    <string name="operating_instructions_toggle_chord">Pressing `LEFT BUMPER` + `RIGHT BUMPER` + `X` will toggle the virtual mouse on and off. While the mouse is enabled, joystick events will not be passed on to other applications.</string>
+    <string name="operating_instructions_primary_button">Pulling the %1$s will simulate a finger down. If the button is released quickly, it will emulate a tap at the cursor position. If the button is held and then released, it will act as a long press. If the button is held and the cursor is moved it will be interpreted as a drag. If the A button is pressed while dragged, the drag will be toggled to a fling gesture.</string>
 
-    <string name="operating_instructions_actions_section_title">Actions:</string>
-    <string name="operating_instructions_actions_section_unshifted_title">Without holding either trigger:</string>
+    <string name="operating_instructions_actions_section_title">Actions</string>
+    <string name="operating_instructions_actions_section_unshifted_title">Without holding the %1$s or %2$s:</string>
+    <string name="operating_instructions_actions_section_single_modifier_title">While holding the %1$s:</string>
+    <string name="operating_instructions_actions_section_dual_modifier_title">While holding both the %1$s and %2$s:</string>
+
     <string name="operating_instructions_action_back">• `SELECT` or `B`: `BACK`</string>
     <string name="operating_instructions_action_home">• `MODE`: `HOME`</string>
     <string name="operating_instructions_action_start">• `START`: `START`</string>
     <string name="operating_instructions_action_activate">• `A`: `ACTIVATE`</string>
-
-    <string name="operating_instructions_actions_section_left_shift_title">While holding the left trigger:</string>
-    <string name="operating_instructions_action_display_backward">• `LEFT SHOULDER`: switch to previous display device</string>
-    <string name="operating_instructions_action_display_forward">• `RIGHT SHOULDER`: switch to next display device</string>
+    <string name="operating_instructions_action_display_backward">• `LEFT BUMPER`: switch to previous display device</string>
+    <string name="operating_instructions_action_display_forward">• `RIGHT BUMPER`: switch to next display device</string>
     <string name="operating_instructions_action_cycle_device">• `SELECT`: choose active controller</string>
-
-    <string name="operating_instructions_actions_section_right_shift_title">While holding the right trigger:</string>
     <string name="operating_instructions_action_swipe_up">• `DPAD-UP`: `fling up`</string>
     <string name="operating_instructions_action_swipe_down">• `DPAD-DOWN`: `fling down`</string>
     <string name="operating_instructions_action_swipe_left">• `DPAD-LEFT`: `fling left`</string>
     <string name="operating_instructions_action_swipe_right">• `DPAD-RIGHT`: `fling right`</string>
     <string name="operating_instructions_action_toggle_gesture">• `A`: toggle between drag and fling gestures</string>
+    <string name="operating_instructions_action_item_template">• %1$s: %2$s</string>
 
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
     <string name="button_manage_accessibility_settings">Accessibility settings</string>
+    <string name="button_configure_actions">Configure button actions</string>
     <string name="button_cancel">Cancel</string>
+    <string name="button_save">Save</string>
+    <string name="button_reset">Reset</string>
+    <string name="button_back">Back</string>
+    <string name="button_change">Change</string>
+    <string name="button_remap">Remap</string>
+    <string name="button_ok">OK</string>
+
+    <string name="config_screen_title">Button configuration</string>
+    <string name="config_screen_description">Remap special actions and button shortcuts.</string>
+    <string name="config_section_modifiers">Modifiers</string>
+    <string name="config_section_actions">Actions</string>
+    <string name="config_section_special">Special</string>
+    <string name="config_mouse_stick_title">Mouse control</string>
+    <string name="config_modifier_shift_title">Shift modifier</string>
+    <string name="config_modifier_alt_title">Alt modifier</string>
+    <string name="config_section_toggle_chord">JoyMouse toggle shortcut</string>
+    <string name="config_button_reset_defaults">Reset all to defaults</string>
+    <string name="config_dialog_reset_confirm_title">Reset all to defaults?</string>
+    <string name="config_dialog_reset_confirm_message">This will reset all button mappings, modifiers, and mouse controls to their default settings.</string>
+    <string name="config_dialog_remap_title">Remap %1$s</string>
+    <string name="config_dialog_modifier_label">Modifier</string>
+    <string name="config_dialog_buttons_label">Button</string>
+    <string name="config_dialog_select_shift_title">Select Shift button</string>
+    <string name="config_dialog_select_alt_title">Select Alt button</string>
+    <string name="config_dialog_select_mouse_stick_title">Select mouse thumbstick</string>
+    <string name="config_dialog_select_mouse_stick_help">Select which thumbstick controls the mouse cursor and configure axis inversion.</string>
+    <string name="config_dialog_invert_x">Invert X axis</string>
+    <string name="config_dialog_invert_y">Invert Y axis</string>
+    <string name="config_dialog_select_button_help">Select which button to use for this modifier.</string>
+    <string name="config_dialog_toggle_chord_title">Configure toggle shortcut</string>
+    <string name="config_dialog_toggle_chord_help">Select the buttons that must be pressed simultaneously to toggle JoyMouse on and off.</string>
+    <string name="config_unassigned">Unassigned</string>
+
+    <string name="config_modifiers_info_title">Modifiers</string>
+    <string name="config_modifiers_info_description">Modifiers (Shift and Alt) are controller buttons that you can hold down while pressing another button to trigger alternate actions. Shift and Alt must be assigned to different buttons.</string>
+    <string name="config_actions_info_title">Actions</string>
+    <string name="config_actions_info_description">Actions allow controller shortcuts for Android system navigation, mouse activation, and display cycling. Each action is triggered by pressing a single button, optionally combined with holding the Shift or Alt modifier.</string>
+    <string name="config_info_modifiers_content_description">Modifier help</string>
+    <string name="config_info_actions_content_description">Actions help</string>
+
+    <string name="config_group_bumper">Bumper</string>
+    <string name="config_group_trigger">Trigger</string>
+    <string name="config_group_thumbstick">Thumbstick</string>
+    <string name="config_group_dpad">D-pad</string>
+    <string name="config_button_left">Left</string>
+    <string name="config_button_right">Right</string>
+    <string name="config_button_up">Up</string>
+    <string name="config_button_down">Down</string>
+
+    <string name="content_description_expand_usage">Expand usage instructions</string>
+    <string name="content_description_collapse_usage">Collapse usage instructions</string>
 
     <string name="enable_service_instructions">The JoyMouse service must be enabled in accessibility settings.</string>
     <string name="service_status_enabled">JoyMouse service is enabled</string>
@@ -39,7 +93,7 @@
     <string name="toast_single_device">Only 1 controller connected</string>
     <string name="toast_active_device">Active controller: %1$s</string>
     <string name="controller_fallback_name">Gamepad #%1$d</string>
-    <string name="controller_selection_dialog_title">Select Active Controller</string>
+    <string name="controller_selection_dialog_title">Select active controller</string>
     <string name="controller_selection_dialog_description">Choose which gamepad controls the mouse cursor.</string>
     <string name="controller_selection_active_badge">Active</string>
 </resources>

@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.StrictMode
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
@@ -18,9 +19,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import work.bearbrains.joymouse.input.ActionConfig
+import work.bearbrains.joymouse.input.ActionConfigRepository
+import work.bearbrains.joymouse.ui.ConfigScreen
 import work.bearbrains.joymouse.ui.JoyMouseTheme
 import work.bearbrains.joymouse.ui.MainScreen
 import work.bearbrains.joymouse.util.isAccessibilityServiceEnabled
+
+enum class AppScreen {
+  MAIN,
+  CONFIG,
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -37,34 +46,73 @@ class MainActivity : ComponentActivity() {
       )
     }
 
+    val actionConfigRepository = ActionConfigRepository(this)
+
     setContent {
       JoyMouseTheme {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
+        var currentScreen by remember { mutableStateOf(AppScreen.MAIN) }
         var isServiceEnabled by remember {
           mutableStateOf(isAccessibilityServiceEnabled(context))
+        }
+        var actionConfig by remember {
+          mutableStateOf(actionConfigRepository.getConfig())
         }
 
         DisposableEffect(lifecycleOwner) {
           val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
               isServiceEnabled = isAccessibilityServiceEnabled(context)
+              actionConfig = actionConfigRepository.getConfig()
             }
           }
           lifecycleOwner.lifecycle.addObserver(observer)
+
+          val closeable = actionConfigRepository.registerListener { newConfig ->
+            actionConfig = newConfig
+          }
+
           onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            closeable.close()
           }
         }
 
-        MainScreen(
-          modifier = Modifier.fillMaxSize(),
-          isServiceEnabled = isServiceEnabled,
-          onLaunchAccessibilitySettings = {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-          },
-        )
+        when (currentScreen) {
+          AppScreen.MAIN -> {
+            MainScreen(
+              modifier = Modifier.fillMaxSize(),
+              isServiceEnabled = isServiceEnabled,
+              actionConfig = actionConfig,
+              onLaunchAccessibilitySettings = {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+              },
+              onNavigateToConfig = {
+                currentScreen = AppScreen.CONFIG
+              },
+            )
+          }
+          AppScreen.CONFIG -> {
+            BackHandler {
+              currentScreen = AppScreen.MAIN
+            }
+            ConfigScreen(
+              actionConfig = actionConfig,
+              onSaveConfig = { newConfig ->
+                actionConfigRepository.saveConfig(newConfig)
+              },
+              onResetDefaults = {
+                actionConfigRepository.resetToDefaults()
+              },
+              onNavigateBack = {
+                currentScreen = AppScreen.MAIN
+              },
+              modifier = Modifier.fillMaxSize(),
+            )
+          }
+        }
       }
     }
   }

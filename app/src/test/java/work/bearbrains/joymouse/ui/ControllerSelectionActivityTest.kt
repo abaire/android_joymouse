@@ -9,10 +9,10 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import work.bearbrains.joymouse.MouseAccessibilityService
-import work.bearbrains.joymouse.MouseAccessibilityServiceTest
+import work.bearbrains.joymouse.ShadowGestureDescriptionCustom
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], shadows = [MouseAccessibilityServiceTest.ShadowGestureDescription::class])
+@Config(sdk = [34], shadows = [ShadowGestureDescriptionCustom::class])
 class ControllerSelectionActivityTest {
 
   @Test

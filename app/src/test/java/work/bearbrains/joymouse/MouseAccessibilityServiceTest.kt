@@ -768,7 +768,7 @@ class MouseAccessibilityServiceTest {
     fuzz: Float = 0.05f,
     resolution: Float = 0f
   ): InputDevice.MotionRange {
-    val constructor = InputDevice.MotionRange::class.java.declaredConstructors.first()
+    val constructor = InputDevice.MotionRange::class.java.declaredConstructors.first { it.parameterTypes.size == 7 }
     constructor.isAccessible = true
     return constructor.newInstance(axis, source, min, max, flat, fuzz, resolution) as InputDevice.MotionRange
   }

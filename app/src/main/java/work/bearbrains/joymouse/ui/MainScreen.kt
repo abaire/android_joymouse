@@ -1,5 +1,6 @@
 package work.bearbrains.joymouse.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,26 +11,45 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import work.bearbrains.joymouse.R
+import work.bearbrains.joymouse.input.ActionConfig
+import work.bearbrains.joymouse.input.JoystickAction
+import work.bearbrains.joymouse.input.ShiftModifier
 
 @Composable
 fun MainScreen(
   modifier: Modifier = Modifier,
   isServiceEnabled: Boolean = false,
+  actionConfig: ActionConfig = ActionConfig.DEFAULT,
   onLaunchAccessibilitySettings: () -> Unit,
+  onNavigateToConfig: () -> Unit = {},
 ) {
+  var isUsageExpanded by rememberSaveable { mutableStateOf(false) }
+
+  val shiftButtonFriendly = ActionConfig.getFriendlyButtonName(actionConfig.shiftButton)
+  val altButtonFriendly = ActionConfig.getFriendlyButtonName(actionConfig.altButton)
+
   Column(
     modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
     verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
@@ -39,6 +59,7 @@ fun MainScreen(
     ServiceStatusCard(
       isServiceEnabled = isServiceEnabled,
       onLaunchAccessibilitySettings = onLaunchAccessibilitySettings,
+      onNavigateToConfig = onNavigateToConfig,
     )
 
     LazyColumn(
@@ -46,14 +67,98 @@ fun MainScreen(
       verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
     ) {
       item {
-        Text(
-          text = stringResource(id = R.string.operating_instructions_section_title),
-          style = MaterialTheme.typography.headlineMedium
-        )
+        Card(
+          modifier = Modifier.fillMaxWidth().clickable { isUsageExpanded = !isUsageExpanded },
+          colors =
+            CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+        ) {
+          Column(
+            modifier = Modifier.fillMaxWidth().padding(LayoutTokens.COLUMN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = stringResource(id = R.string.operating_instructions_section_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+              )
+              Icon(
+                imageVector =
+                  if (isUsageExpanded) Icons.Default.KeyboardArrowUp
+                  else Icons.Default.KeyboardArrowDown,
+                contentDescription =
+                  stringResource(
+                    if (isUsageExpanded) R.string.content_description_collapse_usage
+                    else R.string.content_description_expand_usage
+                  ),
+              )
+            }
+
+            if (isUsageExpanded) {
+              val mouseStickFriendly = actionConfig.mouseStick.getFriendlyName()
+              val activateBinding = actionConfig.actionBindings[JoystickAction.ACTIVATE]
+              val toggleGestureBinding = actionConfig.actionBindings[JoystickAction.TOGGLE_GESTURE]
+
+              val activateText =
+                if (activateBinding != null && activateBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(activateBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              val toggleGestureText =
+                if (toggleGestureBinding != null && toggleGestureBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(toggleGestureBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              val fastCursorBinding = actionConfig.actionBindings[JoystickAction.FAST_CURSOR]
+              val fastCursorText =
+                if (fastCursorBinding != null && fastCursorBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(fastCursorBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_movement_template,
+                    mouseStickFriendly,
+                    fastCursorText,
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_activate_template,
+                    activateText,
+                    toggleGestureText,
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_toggle_chord_template,
+                    ActionConfig.formatChord(actionConfig.toggleChord),
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+            }
+          }
+        }
       }
-      item { Text(text = stringResource(id = R.string.operating_instructions)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_primary_button)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_toggle_chord)) }
 
       item {
         Text(
@@ -62,50 +167,128 @@ fun MainScreen(
         )
       }
 
-      item {
-        Text(
-          text =
-            stringResource(id = R.string.operating_instructions_actions_section_unshifted_title),
-          fontWeight = FontWeight.Bold,
-        )
+      // Group actions by modifier
+      val unshiftedActions =
+        ActionConfig.REMAPPABLE_ACTIONS.filter {
+          actionConfig.actionBindings[it]?.modifier == ShiftModifier.NONE &&
+            (actionConfig.actionBindings[it]?.keyCodes?.isNotEmpty() == true)
+        }
+      val shiftActions =
+        ActionConfig.REMAPPABLE_ACTIONS.filter {
+          actionConfig.actionBindings[it]?.modifier == ShiftModifier.SHIFT &&
+            (actionConfig.actionBindings[it]?.keyCodes?.isNotEmpty() == true)
+        }
+      val altActions =
+        ActionConfig.REMAPPABLE_ACTIONS.filter {
+          actionConfig.actionBindings[it]?.modifier == ShiftModifier.ALT &&
+            (actionConfig.actionBindings[it]?.keyCodes?.isNotEmpty() == true)
+        }
+      val dualShiftActions =
+        ActionConfig.REMAPPABLE_ACTIONS.filter {
+          actionConfig.actionBindings[it]?.modifier == ShiftModifier.ALTSHIFT &&
+            (actionConfig.actionBindings[it]?.keyCodes?.isNotEmpty() == true)
+        }
+
+      if (unshiftedActions.isNotEmpty()) {
+        item {
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_actions_section_unshifted_title,
+                shiftButtonFriendly,
+                altButtonFriendly,
+              ),
+            fontWeight = FontWeight.Bold,
+          )
+        }
+        items(unshiftedActions) { action ->
+          val binding = actionConfig.actionBindings[action]!!
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_action_item_template,
+                ActionConfig.formatBinding(binding),
+                ActionConfig.getActionHelpDescription(action),
+              )
+          )
+        }
       }
 
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_back)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_home)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_start)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_activate)) }
-
-      item {
-        Text(
-          text =
-            stringResource(id = R.string.operating_instructions_actions_section_left_shift_title),
-          fontWeight = FontWeight.Bold,
-        )
-      }
-      item {
-        Text(text = stringResource(id = R.string.operating_instructions_action_display_backward))
-      }
-      item {
-        Text(text = stringResource(id = R.string.operating_instructions_action_display_forward))
-      }
-      item {
-        Text(text = stringResource(id = R.string.operating_instructions_action_cycle_device))
-      }
-
-      item {
-        Text(
-          text =
-            stringResource(id = R.string.operating_instructions_actions_section_right_shift_title),
-          fontWeight = FontWeight.Bold,
-        )
+      if (shiftActions.isNotEmpty()) {
+        item {
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_actions_section_single_modifier_title,
+                shiftButtonFriendly,
+              ),
+            fontWeight = FontWeight.Bold,
+          )
+        }
+        items(shiftActions) { action ->
+          val binding = actionConfig.actionBindings[action]!!
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_action_item_template,
+                ActionConfig.formatBinding(binding),
+                ActionConfig.getActionHelpDescription(action),
+              )
+          )
+        }
       }
 
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_up)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_down)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_left)) }
-      item { Text(text = stringResource(id = R.string.operating_instructions_action_swipe_right)) }
+      if (altActions.isNotEmpty()) {
+        item {
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_actions_section_single_modifier_title,
+                altButtonFriendly,
+              ),
+            fontWeight = FontWeight.Bold,
+          )
+        }
+        items(altActions) { action ->
+          val binding = actionConfig.actionBindings[action]!!
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_action_item_template,
+                ActionConfig.formatBinding(binding),
+                ActionConfig.getActionHelpDescription(action),
+              )
+          )
+        }
+      }
+
+      if (dualShiftActions.isNotEmpty()) {
+        item {
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_actions_section_dual_modifier_title,
+                shiftButtonFriendly,
+                altButtonFriendly,
+              ),
+            fontWeight = FontWeight.Bold,
+          )
+        }
+        items(dualShiftActions) { action ->
+          val binding = actionConfig.actionBindings[action]!!
+          Text(
+            text =
+              stringResource(
+                id = R.string.operating_instructions_action_item_template,
+                ActionConfig.formatBinding(binding),
+                ActionConfig.getActionHelpDescription(action),
+              )
+          )
+        }
+      }
+
       item {
-        Text(text = stringResource(id = R.string.operating_instructions_action_toggle_gesture))
+        Spacer(modifier = Modifier.height(LayoutTokens.COLUMN_ROW_SPACING))
       }
     }
   }
@@ -116,6 +299,7 @@ fun MainScreen(
 private fun ServiceStatusCard(
   isServiceEnabled: Boolean,
   onLaunchAccessibilitySettings: () -> Unit,
+  onNavigateToConfig: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   if (isServiceEnabled) {
@@ -140,11 +324,23 @@ private fun ServiceStatusCard(
           fontWeight = FontWeight.SemiBold,
           modifier = Modifier.align(Alignment.CenterVertically),
         )
-        OutlinedButton(
-          onClick = onLaunchAccessibilitySettings,
-          modifier = Modifier.align(Alignment.CenterVertically),
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.padding(vertical = 4.dp),
         ) {
-          Text(stringResource(id = R.string.button_manage_accessibility_settings))
+          Button(
+            onClick = onNavigateToConfig,
+            modifier = Modifier.align(Alignment.CenterVertically),
+          ) {
+            Text(stringResource(id = R.string.button_configure_actions))
+          }
+          OutlinedButton(
+            onClick = onLaunchAccessibilitySettings,
+            modifier = Modifier.align(Alignment.CenterVertically),
+          ) {
+            Text(stringResource(id = R.string.button_manage_accessibility_settings))
+          }
         }
       }
     }
@@ -165,9 +361,17 @@ private fun ServiceStatusCard(
           text = stringResource(id = R.string.enable_service_instructions),
           style = MaterialTheme.typography.titleMedium,
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        FlowRow(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.Center,
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
           Button(onClick = onLaunchAccessibilitySettings) {
             Text(stringResource(id = R.string.button_open_accessibility_settings))
+          }
+          Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+          OutlinedButton(onClick = onNavigateToConfig) {
+            Text(stringResource(id = R.string.button_configure_actions))
           }
         }
       }

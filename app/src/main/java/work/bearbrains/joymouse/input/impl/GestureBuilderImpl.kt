@@ -42,6 +42,9 @@ internal class GestureBuilderImpl(
   /** The logical action represented by this gesture. */
   override val action: GestureBuilder.Action
     get() {
+      if (dragIsFling) {
+        return GestureBuilder.Action.FLING
+      }
       if (_action == GestureBuilder.Action.TOUCH) {
         val elapsedMilliseconds = clock.nanoTime().toGestureTimeMillis()
         if (elapsedMilliseconds >= gestureUtil.longTouchThreshold.inWholeMilliseconds) {

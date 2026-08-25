@@ -17,6 +17,8 @@ class JoystickButtonProcessorImpl(
   private val rightShiftButtons: Set<ButtonMapping> = emptySet(),
   private val dualShiftButtons: Set<ButtonMapping> = emptySet(),
   private val rawButtons: Set<RawButtonMapping> = emptySet(),
+  private val leftShiftKey: Int = LEFT_SHIFT,
+  private val rightShiftKey: Int = RIGHT_SHIFT,
   private val onAction: (JoystickButtonProcessor, JoystickAction) -> Unit,
 ) : JoystickButtonProcessor {
   private interface ButtonHolder {
@@ -83,9 +85,6 @@ class JoystickButtonProcessorImpl(
   /** Map of button IDs to [ButtonMapping] instances that were triggered when they were pressed. */
   private val buttonLatches = mutableMapOf<Int, ButtonMapping>()
 
-  private var leftShiftUsed = false
-  private var rightShiftUsed = false
-
   override fun handleButtonEvent(buttonId: Int, isPressed: Boolean) {
     val oldState = buttonStates.getOrDefault(buttonId, false)
     if (oldState == isPressed) {
@@ -110,8 +109,6 @@ class JoystickButtonProcessorImpl(
     }
 
     buttonLatches.clear()
-    leftShiftUsed = false
-    rightShiftUsed = false
 
     fun clearVirtualButtons(mappings: Iterable<ButtonHolder>) {
       mappings.forEach { it.button.reset() }
@@ -154,22 +151,8 @@ class JoystickButtonProcessorImpl(
   }
 
   private fun handleButtonPressEvent(buttonId: Int) {
-    if (buttonId == LEFT_SHIFT) {
-      leftShiftUsed = false
-    }
-    if (buttonId == RIGHT_SHIFT) {
-      rightShiftUsed = false
-    }
-
-    val leftShift = (buttonId != LEFT_SHIFT) && buttonStates.getOrDefault(LEFT_SHIFT, false)
-    val rightShift = (buttonId != RIGHT_SHIFT) && buttonStates.getOrDefault(RIGHT_SHIFT, false)
-
-    if (leftShift) {
-      leftShiftUsed = true
-    }
-    if (rightShift) {
-      rightShiftUsed = true
-    }
+    val leftShift = (buttonId != leftShiftKey) && buttonStates.getOrDefault(leftShiftKey, false)
+    val rightShift = (buttonId != rightShiftKey) && buttonStates.getOrDefault(rightShiftKey, false)
 
     val buttonList =
       if (leftShift && rightShift) {
@@ -181,8 +164,6 @@ class JoystickButtonProcessorImpl(
       } else {
         unshiftedButtons
       }
-
-    val isShiftKey = (buttonId == LEFT_SHIFT || buttonId == RIGHT_SHIFT)
 
     for (mapping in buttonList) {
       val (button, actionEvent) = mapping
@@ -210,38 +191,11 @@ class JoystickButtonProcessorImpl(
       }
       button.onFullyReleased = { button.components.forEach { buttonLatches.remove(it) } }
 
-      // Defer unshifted press actions for shift keys until release so they don't collide when used as modifiers.
-      if (!isShiftKey) {
-        actionEvent.onPress?.let { action -> onAction(this, action) }
-      }
+      actionEvent.onPress?.let { action -> onAction(this, action) }
     }
   }
 
   private fun handleButtonReleaseEvent(buttonId: Int) {
-    if (buttonId == RIGHT_SHIFT) {
-      val mapping = buttonLatches.remove(buttonId)
-      if (mapping != null) {
-        mapping.button.update(buttonStates)
-        if (!rightShiftUsed) {
-          mapping.actionSet.onPress?.let { action -> onAction(this, action) }
-          mapping.actionSet.onRelease?.let { action -> onAction(this, action) }
-        }
-      }
-      return
-    }
-
-    if (buttonId == LEFT_SHIFT) {
-      val mapping = buttonLatches.remove(buttonId)
-      if (mapping != null) {
-        mapping.button.update(buttonStates)
-        if (!leftShiftUsed) {
-          mapping.actionSet.onPress?.let { action -> onAction(this, action) }
-          mapping.actionSet.onRelease?.let { action -> onAction(this, action) }
-        }
-      }
-      return
-    }
-
     buttonLatches.get(buttonId)?.let { mapping ->
       val stateChanged = mapping.button.update(buttonStates)
       if (!stateChanged) {

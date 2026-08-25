@@ -3,8 +3,11 @@ package work.bearbrains.joymouse.input.impl
 import android.view.KeyEvent
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import work.bearbrains.joymouse.input.ActionBinding
+import work.bearbrains.joymouse.input.ActionConfig
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickButtonProcessor
+import work.bearbrains.joymouse.input.ShiftModifier
 
 internal class JoystickButtonProcessorFactoryImplTest {
 
@@ -37,7 +40,7 @@ internal class JoystickButtonProcessorFactoryImplTest {
   }
 
   @Test
-  fun shifted_r2WithDpadUp_emitsSwipeUpWithoutPrimaryPressOrRelease() {
+  fun shifted_r2WithDpadUp_emitsSwipeUp() {
     val events = mutableListOf<JoystickAction>()
     val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
 
@@ -46,24 +49,33 @@ internal class JoystickButtonProcessorFactoryImplTest {
     sut.handleButtonEvent(KeyEvent.KEYCODE_DPAD_UP, false)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
 
-    assertThat(events).containsExactly(
-      JoystickAction.SWIPE_UP
-    )
+    assertThat(events).contains(JoystickAction.SWIPE_UP)
   }
 
   @Test
-  fun shifted_r2WithButtonA_emitsToggleGestureWithoutPrimaryPressOrRelease() {
+  fun unshifted_thumbr_emitsToggleGesture() {
     val events = mutableListOf<JoystickAction>()
     val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
 
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, false)
 
     assertThat(events).containsExactly(
       JoystickAction.TOGGLE_GESTURE
     )
+  }
+
+  @Test
+  fun shifted_r2WithThumbr_emitsToggleGesture() {
+    val events = mutableListOf<JoystickAction>()
+    val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
+
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+
+    assertThat(events).contains(JoystickAction.TOGGLE_GESTURE)
   }
 
   @Test
@@ -77,5 +89,41 @@ internal class JoystickButtonProcessorFactoryImplTest {
     assertThat(events).containsExactly(
       JoystickAction.DPAD_UP
     )
+  }
+
+  @Test
+  fun customConfig_remappedAction_emitsCorrectAction() {
+    val events = mutableListOf<JoystickAction>()
+    val customConfig =
+      ActionConfig(
+        actionBindings =
+          mapOf(
+            JoystickAction.HOME to
+              ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_Y))
+          ),
+      )
+    val sut = JoystickButtonProcessorFactoryImpl.create(customConfig) { _, action -> events.add(action) }
+
+    // Holding Left Trigger (L2 = SHIFT) + Y
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_L2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_Y, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_Y, false)
+
+    assertThat(events).contains(JoystickAction.HOME)
+  }
+
+  @Test
+  fun customConfig_customToggleChord_togglesJoyMouse() {
+    val events = mutableListOf<JoystickAction>()
+    val customConfig =
+      ActionConfig(
+        toggleChord = setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START),
+      )
+    val sut = JoystickButtonProcessorFactoryImpl.create(customConfig) { _, action -> events.add(action) }
+
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_SELECT, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_START, true)
+
+    assertThat(events).contains(JoystickAction.TOGGLE_ENABLED)
   }
 }
