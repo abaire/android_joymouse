@@ -37,4 +37,10 @@ interface JoystickCursorState : Closeable {
 
   /** Processes a press/release event. Returns true if the event was consumed. */
   fun handleButtonEvent(isDown: Boolean, keyCode: Int)
+
+  /**
+   * Updates the display info for this cursor (e.g. after display resize, rotation, or reassignment).
+   * Adjusts the cursor coordinates to maintain its relative position on the new display bounds.
+   */
+  fun updateDisplayInfo(newDisplayInfo: DisplayInfo)
 }

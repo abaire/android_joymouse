@@ -416,6 +416,124 @@ internal class JoystickCursorStateImplTest {
     assertThat(sut.isEnabled).isTrue()
   }
 
+  @Test
+  fun updateDisplayInfo_adjustsCursorPositionRelatively() {
+    var updatePositionCalled = 0
+
+    val sut =
+      create(
+        onUpdatePosition = {
+          updatePositionCalled++
+        }
+      )
+    // Initially centered at 500, 250 in 1000x500
+    assertThat(sut.pointerX).isEqualTo(500f)
+    assertThat(sut.pointerY).isEqualTo(250f)
+    assertThat(updatePositionCalled).isEqualTo(0)
+
+    val portraitDisplayInfo =
+      DisplayInfo(
+        Display.DEFAULT_DISPLAY,
+        context,
+        windowWidth = 500f,
+        windowHeight = 1000f,
+      )
+    sut.updateDisplayInfo(portraitDisplayInfo)
+
+    // Should now be at relative 0.5, 0.5 in 500x1000 -> 250, 500
+    assertThat(sut.pointerX).isEqualTo(250f)
+    assertThat(sut.pointerY).isEqualTo(500f)
+    assertThat(sut.displayInfo).isEqualTo(portraitDisplayInfo)
+    assertThat(updatePositionCalled).isEqualTo(1)
+  }
+
+  @Test
+  fun updateDisplayInfo_adjustsCursorPositionRelatively_whenMoved() {
+    val sut = create()
+    // Move cursor on X and Y
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    sut.update(motionEvent)
+
+    // Initial position was (500, 250) on (1000x500).
+    // Over 100 ms with 1.0 X deflection and 0.5 Y deflection (velocity = 0.5 px/ms):
+    // dX = 1.0 * 100 * 0.5 = +50 px -> pointerX = 550f (55%)
+    // dY = 0.5 * 100 * 0.5 = +25 px -> pointerY = 275f (55%)
+    assertThat(sut.pointerX).isEqualTo(550f)
+    assertThat(sut.pointerY).isEqualTo(275f)
+
+    val portraitDisplayInfo =
+      DisplayInfo(
+        Display.DEFAULT_DISPLAY,
+        context,
+        windowWidth = 500f,
+        windowHeight = 1000f,
+      )
+    sut.updateDisplayInfo(portraitDisplayInfo)
+
+    // 55% of 500 is 275, 55% of 1000 is 550
+    assertThat(sut.pointerX).isEqualTo(275f)
+    assertThat(sut.pointerY).isEqualTo(550f)
+  }
+
+  @Test
+  fun updateDisplayInfo_updatesBoundsForSubsequentMotion() {
+    val sut = create()
+
+    val portraitDisplayInfo =
+      DisplayInfo(
+        Display.DEFAULT_DISPLAY,
+        context,
+        windowWidth = 500f,
+        windowHeight = 1000f,
+      )
+    sut.updateDisplayInfo(portraitDisplayInfo)
+
+    // Deflect downwards in portrait mode (velocity is 500px/s = 0.5px/ms)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    // Advance 100ms with 1.0 deflection: dY = 1.0 * 100 * 0.5 = +50px
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    // pointerY started at 500f in portrait (500x1000), moving downwards moves it to 550f (> 500f landscape height)
+    assertThat(sut.pointerY).isEqualTo(550f)
+    assertThat(sut.pointerY).isGreaterThan(500f)
+    assertThat(sut.pointerY).isAtMost(1000f)
+  }
+
+
+
+
+  @Test
+  fun updateDisplayInfo_withSameDisplayInfo_doesNotEmitUpdate() {
+    var updatePositionCalled = 0
+    val displayInfo =
+      DisplayInfo(
+        Display.DEFAULT_DISPLAY,
+        context,
+        windowWidth = WINDOW_WIDTH,
+        windowHeight = WINDOW_HEIGHT,
+      )
+    val sut =
+      create(
+        displayInfo = displayInfo,
+        onUpdatePosition = {
+          updatePositionCalled++
+        }
+      )
+
+    sut.updateDisplayInfo(displayInfo)
+
+    assertThat(updatePositionCalled).isEqualTo(0)
+  }
+
+
   private fun create(
     displayInfo: DisplayInfo =
       DisplayInfo(

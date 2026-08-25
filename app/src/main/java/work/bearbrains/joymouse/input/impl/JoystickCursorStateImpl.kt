@@ -14,7 +14,7 @@ import work.bearbrains.joymouse.input.JoystickCursorState
 class JoystickCursorStateImpl
 private constructor(
   override val deviceId: Int,
-  override val displayInfo: DisplayInfo,
+  override var displayInfo: DisplayInfo,
   private val handler: Handler,
   private val xAxis: RangedAxis,
   private val yAxis: RangedAxis,
@@ -88,7 +88,7 @@ private constructor(
   override var pointerY = displayInfo.windowHeight * 0.5f
     private set
 
-  private val defaultVelocityPixelsPerNanosecond =
+  private var defaultVelocityPixelsPerNanosecond =
     calculateDefaultVelocityForWindow(displayInfo.windowWidth, displayInfo.windowHeight)
 
   private var lastEventTimeNanoseconds: Long? = null
@@ -177,6 +177,29 @@ private constructor(
   override fun handleButtonEvent(isDown: Boolean, keyCode: Int) {
     buttonProcessor.handleButtonEvent(keyCode, isDown)
   }
+
+  override fun updateDisplayInfo(newDisplayInfo: DisplayInfo) {
+    if (this.displayInfo == newDisplayInfo) {
+      return
+    }
+
+    val oldWidth = this.displayInfo.windowWidth
+    val oldHeight = this.displayInfo.windowHeight
+
+    this.displayInfo = newDisplayInfo
+
+    val relX = if (oldWidth > 0f) pointerX / oldWidth else 0.5f
+    val relY = if (oldHeight > 0f) pointerY / oldHeight else 0.5f
+
+    pointerX = (relX * newDisplayInfo.windowWidth).coerceIn(0f, newDisplayInfo.windowWidth)
+    pointerY = (relY * newDisplayInfo.windowHeight).coerceIn(0f, newDisplayInfo.windowHeight)
+
+    defaultVelocityPixelsPerNanosecond =
+      calculateDefaultVelocityForWindow(newDisplayInfo.windowWidth, newDisplayInfo.windowHeight)
+
+    onUpdatePosition(this)
+  }
+
 
   companion object {
     const val TAG = "JoystickCursorStateImpl"

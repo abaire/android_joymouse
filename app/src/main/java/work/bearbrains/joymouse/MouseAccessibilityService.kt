@@ -164,25 +164,28 @@ class MouseAccessibilityService :
   }
 
   private fun rebuildDisplays() {
+    cancelPendingLongTouch()
+    activeGestureBuilder = null
     measureDisplays()
 
     for (joystickId in joystickDeviceIdsToState.keys.toSet()) {
       val state = joystickDeviceIdsToState[joystickId]!!
-      if (state.displayInfo.isValid) {
-        continue
-      }
+      val currentDisplayId = state.displayInfo.displayId
 
-      val displayInfo =
-        displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.first())
+      val newDisplayInfo =
+        if (displayInfos.containsKey(currentDisplayId)) {
+          displayInfos[currentDisplayId]!!
+        } else {
+          displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.firstOrNull())
+        }
 
-      moveJoystickCursorToDisplay(state, displayInfo)?.let { newState ->
-        joystickDeviceIdsToState[joystickId] = newState
+      if (newDisplayInfo != null) {
+        state.updateDisplayInfo(newDisplayInfo)
+        updateCursorPosition(state)
       }
     }
   }
 
-  private val DisplayInfo.isValid: Boolean
-    get() = displayIdToCursorDisplayState.containsKey(displayId)
 
   override fun onKeyEvent(event: KeyEvent?): Boolean {
     if (event == null) {
@@ -218,6 +221,10 @@ class MouseAccessibilityService :
   }
 
   private fun updateCursorPosition(state: JoystickCursorState) {
+    if (!state.isEnabled) {
+      return
+    }
+
     val displayInfo = state.displayInfo
     val cursorState = displayIdToCursorDisplayState.get(displayInfo.displayId)
     if (cursorState == null) {
@@ -238,6 +245,7 @@ class MouseAccessibilityService :
     }
     cursorState.show()
   }
+
 
   /** Update the visual state of the cursor based on the under-construction gesture action. */
   private fun updateCursorDisplayState(displayState: CursorDisplayState) {
@@ -433,36 +441,14 @@ class MouseAccessibilityService :
       return
     }
 
-    moveJoystickCursorToDisplay(state, newDisplayInfo)
+    cancelPendingLongTouch()
+    activeGestureBuilder = null
+    displayIdToCursorDisplayState.get(currentDisplayId)?.hide()
+    state.updateDisplayInfo(newDisplayInfo)
+    updateCursorPosition(state)
     selectDisplayRootWindow(newDisplayId)
   }
 
-  private fun moveJoystickCursorToDisplay(
-    state: JoystickCursorState,
-    newDisplayInfo: DisplayInfo
-  ): JoystickCursorState? {
-    if (newDisplayInfo == state.displayInfo) {
-      return state
-    }
-
-    val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
-    val device = inputManager.getInputDevice(state.deviceId)
-    if (device == null) {
-      Log.e(
-        TAG,
-        "Unexpectedly failed to retrieve device ${state.deviceId} associated with existing joystick state"
-      )
-      return null
-    }
-
-    state.close()
-    displayIdToCursorDisplayState.get(state.displayInfo.displayId)?.hide()
-
-    cancelPendingLongTouch()
-    activeGestureBuilder = null
-
-    return addJoystickDevice(device, newDisplayInfo).also { updateCursorPosition(it) }
-  }
 
   private fun onAction(state: JoystickCursorState, action: JoystickAction) {
     Log.d(TAG, "onAction ${action} for state ${state}")
@@ -545,14 +531,11 @@ class MouseAccessibilityService :
   }
 
   private fun getDefaultDisplayContext(): Context {
-    displayInfos.get(Display.DEFAULT_DISPLAY)?.let { info ->
-      return info.context
-    }
-
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     val defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
     return createDisplayContext(defaultDisplay)
   }
+
 
   /**
    * Certain elements in Samsung DeX do not respond to accessibility gestures but do respond to
@@ -670,9 +653,6 @@ class MouseAccessibilityService :
     val defaultDisplayContext = getDefaultDisplayContext()
     val detectedDisplayIds = mutableSetOf<Int>()
 
-    displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
-    displayIdToCursorDisplayState.clear()
-
     for (display in extractDisplaysFromWindows()) {
       val context =
         if (display.displayId == Display.DEFAULT_DISPLAY) {
@@ -694,19 +674,21 @@ class MouseAccessibilityService :
       displayInfos[display.displayId] = info
       detectedDisplayIds.add(display.displayId)
 
-      val cursorOverlay = CursorAccessibilityOverlay(info)
-
-      displayIdToCursorDisplayState[display.displayId] =
-        CursorDisplayState(cursorOverlay, handler, onShow = ::attachAccessibilityOverlayToDisplay)
-    }
-
-    val displayInfoKeys = displayInfos.keys.toSet()
-    for (displayId in displayInfoKeys) {
-      if (!detectedDisplayIds.contains(displayId)) {
-        displayInfos.remove(displayId)
+      if (!displayIdToCursorDisplayState.containsKey(display.displayId)) {
+        val cursorOverlay = CursorAccessibilityOverlay(info)
+        displayIdToCursorDisplayState[display.displayId] =
+          CursorDisplayState(cursorOverlay, handler, onShow = ::attachAccessibilityOverlayToDisplay)
       }
     }
+
+    val removedDisplayIds = displayIdToCursorDisplayState.keys - detectedDisplayIds
+    for (displayId in removedDisplayIds) {
+      displayIdToCursorDisplayState[displayId]?.close()
+      displayIdToCursorDisplayState.remove(displayId)
+      displayInfos.remove(displayId)
+    }
   }
+
 
   private fun detectJoystickDevices(inputManager: InputManager) {
     val visitedDevices = mutableSetOf<Int>()
@@ -852,6 +834,9 @@ private class CursorDisplayState(
       return
     }
 
+    SurfaceControl.Transaction()
+      .setVisibility(overlay.surfaceControl, true)
+      .apply()
     onShow(overlay.displayInfo.displayId, overlay.surfaceControl)
     isShown = true
   }
@@ -863,9 +848,13 @@ private class CursorDisplayState(
       return
     }
 
-    SurfaceControl.Transaction().reparent(overlay.surfaceControl, null).apply()
+    SurfaceControl.Transaction()
+      .setVisibility(overlay.surfaceControl, false)
+      .reparent(overlay.surfaceControl, null)
+      .apply()
     isShown = false
   }
+
 
   /** Queues a future action to invoke the `onHide` callback. */
   fun restartHider() {
