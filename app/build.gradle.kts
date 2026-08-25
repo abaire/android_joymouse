@@ -5,6 +5,7 @@ plugins {
   alias(libs.plugins.jetbrains.kotlin.android)
 
   alias(libs.plugins.ncorti.ktfmt)
+    alias(libs.plugins.kotlin.compose)
 }
 
 ktfmt { googleStyle() }
@@ -39,11 +40,7 @@ android {
     compose = true
   }
 
-  composeOptions {
-    kotlinCompilerExtensionVersion = "1.5.15"
-  }
-
-  compileOptions {
+    compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
   }
