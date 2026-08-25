@@ -29,7 +29,11 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
         mapping(basicButton(KeyEvent.KEYCODE_DPAD_DOWN), onRelease = JoystickAction.DPAD_DOWN),
         mapping(basicButton(KeyEvent.KEYCODE_DPAD_LEFT), onRelease = JoystickAction.DPAD_LEFT),
         mapping(basicButton(KeyEvent.KEYCODE_DPAD_RIGHT), onRelease = JoystickAction.DPAD_RIGHT),
-        mapping(basicButton(KeyEvent.KEYCODE_BUTTON_A), onRelease = JoystickAction.ACTIVATE),
+        mapping(
+          basicButton(KeyEvent.KEYCODE_BUTTON_A),
+          onPress = JoystickAction.PRIMARY_PRESS,
+          onRelease = JoystickAction.PRIMARY_RELEASE,
+        ),
         mapping(
           multiplexedButton(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_B),
           onRelease = JoystickAction.BACK
@@ -90,11 +94,6 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
             basicButton(KeyEvent.KEYCODE_BUTTON_L2),
             onPress = JoystickAction.FAST_CURSOR_PRESS,
             onRelease = JoystickAction.FAST_CURSOR_RELEASE,
-          ),
-          JoystickButtonProcessorImpl.RawButtonMapping(
-            basicButton(KeyEvent.KEYCODE_BUTTON_R2),
-            onPress = JoystickAction.PRIMARY_PRESS,
-            onRelease = JoystickAction.PRIMARY_RELEASE,
           ),
         ),
       onAction = onAction

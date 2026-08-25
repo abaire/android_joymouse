@@ -181,7 +181,7 @@ internal class JoystickCursorStateImplTest {
 
   @Test
   fun chordEvents_preventUnchordEvents() {
-    // R2 + UP should emit SWIPE_UP, but should not emit DPAD_UP.
+    // R2 + UP should emit SWIPE_UP, but should not emit DPAD_UP or PRIMARY_PRESS.
     val captor = EventCaptor()
     val sut = create(onAction = captor.capture())
 
@@ -191,12 +191,8 @@ internal class JoystickCursorStateImplTest {
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_HAT_Y)).thenReturn(0f)
     sut.update(motionEvent)
 
-    assertThat(captor.size).isEqualTo(2)
-    assertThat(
-      captor.containsExactly(
-        Pair(sut, JoystickAction.PRIMARY_PRESS),
-        Pair(sut, JoystickAction.SWIPE_UP)
-      )
+    assertThat(captor.events).containsExactly(
+      Pair(sut, JoystickAction.SWIPE_UP)
     )
   }
 
@@ -250,10 +246,11 @@ internal class JoystickCursorStateImplTest {
 
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     sut.update(motionEvent)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(WITHIN_AXIS_DEADZONE)
+    sut.update(motionEvent)
 
     assertThat(timesCalled).isEqualTo(1)
     assertThat(receivedState).isEqualTo(sut)
-    assertThat(receivedState!!.isPrimaryButtonPressed).isTrue()
   }
 
   @Test
@@ -276,6 +273,28 @@ internal class JoystickCursorStateImplTest {
 
     assertThat(timesCalled).isEqualTo(1)
     assertThat(receivedState).isEqualTo(sut)
+    assertThat(receivedState!!.isPrimaryButtonPressed).isFalse()
+  }
+
+  @Test
+  fun buttonA_callsOnUpdatePrimaryButton() {
+    var timesCalled = 0
+    var receivedState: JoystickCursorState? = null
+    val sut =
+      create() { state, action ->
+        if (action == JoystickAction.PRIMARY_PRESS) {
+          timesCalled += 1
+          receivedState = state
+        }
+      }
+
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_A)
+
+    assertThat(timesCalled).isEqualTo(1)
+    assertThat(receivedState).isEqualTo(sut)
+    assertThat(receivedState!!.isPrimaryButtonPressed).isTrue()
+
+    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_A)
     assertThat(receivedState!!.isPrimaryButtonPressed).isFalse()
   }
 
