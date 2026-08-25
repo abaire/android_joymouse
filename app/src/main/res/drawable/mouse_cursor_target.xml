@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28.1395dp"
+    android:height="23.648dp"
+    android:viewportWidth="56.279"
+    android:viewportHeight="47.296">
+  <!-- Central circle -->
+  <path
+      android:pathData="M 28.14,17.65 A 6,6 0 1,0 28.14,29.65 A 6,6 0 1,0 28.14,17.65 Z"
+      android:strokeWidth="2.8"
+      android:fillColor="#ffffff"
+      android:strokeColor="#000000"/>
+  <!-- Concentric outer toroid -->
+  <path
+      android:pathData="M 28.14,3.15 A 20.5,20.5 0 1,0 28.14,44.15 A 20.5,20.5 0 1,0 28.14,3.15 Z M 28.14,10.15 A 13.5,13.5 0 1,1 28.14,37.15 A 13.5,13.5 0 1,1 28.14,10.15 Z"
+      android:strokeWidth="2.8"
+      android:fillColor="#ffffff"
+      android:strokeColor="#000000"/>
+</vector>
