@@ -1,6 +1,7 @@
 package work.bearbrains.joymouse
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
@@ -24,6 +25,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import androidx.core.util.keyIterator
 import java.io.Closeable
 import kotlin.math.absoluteValue
@@ -90,7 +92,7 @@ class MouseAccessibilityService :
 
       field = value
 
-      val info = serviceInfo
+      val info = serviceInfo ?: AccessibilityServiceInfo()
       if (value) {
         info.motionEventSources = SOURCE_JOYSTICK
       } else {
@@ -99,7 +101,7 @@ class MouseAccessibilityService :
       serviceInfo = info
     }
 
-  override fun onServiceConnected() {
+  public override fun onServiceConnected() {
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
 
@@ -195,7 +197,7 @@ class MouseAccessibilityService :
   }
 
 
-  override fun onKeyEvent(event: KeyEvent?): Boolean {
+  public override fun onKeyEvent(event: KeyEvent?): Boolean {
     if (event == null) {
       return super.onKeyEvent(event)
     }
@@ -215,9 +217,9 @@ class MouseAccessibilityService :
     return state.isEnabled || state.isEnabled != wasEnabled
   }
 
-  override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+  public override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
-  override fun onMotionEvent(event: MotionEvent) {
+  public override fun onMotionEvent(event: MotionEvent) {
     val state = joystickDeviceIdsToState.get(event.deviceId)
     if (state == null) {
       return
@@ -423,14 +425,24 @@ class MouseAccessibilityService :
     val currentDisplayId = state.displayInfo.displayId
 
     val displayIds = displayInfos.keys.sorted()
+    if (displayIds.size <= 1) {
+      Toast.makeText(state.displayInfo.context, R.string.toast_single_display, Toast.LENGTH_SHORT)
+        .show()
+      return
+    }
+
     val currentIndex = displayIds.indexOf(currentDisplayId)
     var newIndex =
-      currentIndex +
-        if (forward) {
-          1
-        } else {
-          -1
-        }
+      if (currentIndex == -1) {
+        0
+      } else {
+        currentIndex +
+          if (forward) {
+            1
+          } else {
+            -1
+          }
+      }
     if (newIndex < 0) {
       newIndex = displayIds.size - 1
     } else if (newIndex >= displayIds.size) {
@@ -440,6 +452,8 @@ class MouseAccessibilityService :
     val newDisplayId = displayIds[newIndex]
 
     if (newDisplayId == currentDisplayId) {
+      Toast.makeText(state.displayInfo.context, R.string.toast_single_display, Toast.LENGTH_SHORT)
+        .show()
       return
     }
 
@@ -455,6 +469,11 @@ class MouseAccessibilityService :
     state.updateDisplayInfo(newDisplayInfo)
     updateCursorPosition(state)
     selectDisplayRootWindow(newDisplayId)
+    Toast.makeText(
+      newDisplayInfo.context,
+      getString(R.string.toast_active_display, newDisplayId),
+      Toast.LENGTH_SHORT
+    ).show()
   }
 
 
@@ -540,7 +559,7 @@ class MouseAccessibilityService :
 
   private fun getDefaultDisplayContext(): Context {
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-    val defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
+    val defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY) ?: return this
     return createDisplayContext(defaultDisplay)
   }
 
@@ -604,56 +623,52 @@ class MouseAccessibilityService :
   }
 
   /**
-   * [DisplayManager] enumerates physical displays but in the case of Samsung DEX, the alternate
-   * display appears to be a virtual display whose ID does not appear in the [DisplayManager]
-   * enumeration. This method uses the accessibility window list to discover all displays with at
-   * least one window.
+   * Discovers all available displays from both [DisplayManager] and the accessibility window list.
+   * Samsung DeX may expose displays through physical enumeration or virtual display IDs in the
+   * window list.
    */
-  private fun extractDisplaysFromWindows(): List<Display> {
-    val ret = mutableListOf<Display>()
+  private fun extractDisplays(): List<Display> {
+    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    val displays = mutableMapOf<Int, Display>()
+
+    for (display in displayManager.displays) {
+      Log.d(TAG, "  DisplayManager display ${display.displayId}: $display")
+      displays[display.displayId] = display
+    }
 
     val displayToWindows = windowsOnAllDisplays
     val numDisplays = displayToWindows.size()
-    Log.d(TAG, "extractDisplaysFromWindows: windowsOnAllDisplays.size = ${numDisplays}")
+    Log.d(TAG, "extractDisplays: windowsOnAllDisplays.size = $numDisplays")
 
-    val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     for (key in displayToWindows.keyIterator()) {
-      displayManager.getDisplay(key)?.let {
-        Log.d(TAG, "  Display ${key}: ${it}")
-
-        if (displayToWindows[key].isEmpty()) {
-          Log.i(TAG, "Ignoring display ${key} with no accessibility window info (${it})")
-          return@let
+      if (!displays.containsKey(key)) {
+        displayManager.getDisplay(key)?.let {
+          Log.d(TAG, "  Virtual display from windows $key: $it")
+          displays[key] = it
         }
-
-        ret.add(it)
       }
     }
 
-    return ret
+    return displays.values.toList()
   }
 
   /** Sends a SELECT action to the root node of the given display (which may be virtual). */
   private fun selectDisplayRootWindow(displayId: Int): Boolean {
     val windows = windowsOnAllDisplays[displayId]
-    if (windows == null) {
-      Log.e(TAG, "Ignoring attempt to select root node on unknown displayId ${displayId}")
-      return false
-    }
-    if (windows.size == 0) {
-      Log.e(TAG, "Ignoring attempt to select root node on displayId ${displayId} with no windows")
+    if (windows.isNullOrEmpty()) {
+      Log.i(TAG, "No windows to select on displayId $displayId")
       return false
     }
 
-    val rootWindow = windows.last()
-    val rootNode = rootWindow.root
-
-    for (actionToPerform in SELECT_DISPLAY_ACTIONS) {
-      if (rootNode?.performAction(actionToPerform) == true) {
-        return true
+    for (window in windows.reversed()) {
+      val rootNode = window.root ?: continue
+      for (actionToPerform in SELECT_DISPLAY_ACTIONS) {
+        if (rootNode.performAction(actionToPerform)) {
+          return true
+        }
       }
     }
-    Log.w(TAG, "Failed to select display ${displayId} with root node ${rootNode}")
+    Log.w(TAG, "Failed to select display $displayId with any window root node")
     return false
   }
 
@@ -661,7 +676,7 @@ class MouseAccessibilityService :
     val defaultDisplayContext = getDefaultDisplayContext()
     val detectedDisplayIds = mutableSetOf<Int>()
 
-    for (display in extractDisplaysFromWindows()) {
+    for (display in extractDisplays()) {
       val context =
         if (display.displayId == Display.DEFAULT_DISPLAY) {
           defaultDisplayContext
@@ -724,7 +739,8 @@ class MouseAccessibilityService :
     }
   }
 
-  private fun addJoystickDevice(
+  @androidx.annotation.VisibleForTesting
+  internal fun addJoystickDevice(
     device: InputDevice,
     displayInfo: DisplayInfo? = null
   ): JoystickCursorState {
@@ -735,7 +751,8 @@ class MouseAccessibilityService :
       }
 
       // If the primary display has gone to sleep, it is possible that it is no longer accessible.
-      return displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.first())
+      return displayInfos.getOrDefault(Display.DEFAULT_DISPLAY, displayInfos.values.firstOrNull())
+        ?: DisplayInfo(Display.DEFAULT_DISPLAY, getDefaultDisplayContext(), 1920f, 1080f)
     }
 
     val newDevice =

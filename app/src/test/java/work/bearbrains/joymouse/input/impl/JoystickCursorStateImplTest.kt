@@ -201,6 +201,42 @@ internal class JoystickCursorStateImplTest {
   }
 
   @Test
+  fun leftTrigger_andLeftShoulder_emitsCycleDisplayBackward() {
+    val captor = EventCaptor()
+    val sut = create(onAction = captor.capture())
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_L1)
+    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_L1)
+
+    assertThat(captor.events.map { it.second })
+      .containsExactly(
+        JoystickAction.FAST_CURSOR_PRESS,
+        JoystickAction.CYCLE_DISPLAY_BACKWARD,
+      )
+  }
+
+  @Test
+  fun leftTrigger_andRightShoulder_emitsCycleDisplayForward() {
+    val captor = EventCaptor()
+    val sut = create(onAction = captor.capture())
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    sut.handleButtonEvent(true, KeyEvent.KEYCODE_BUTTON_R1)
+    sut.handleButtonEvent(false, KeyEvent.KEYCODE_BUTTON_R1)
+
+    assertThat(captor.events.map { it.second })
+      .containsExactly(
+        JoystickAction.FAST_CURSOR_PRESS,
+        JoystickAction.CYCLE_DISPLAY_FORWARD,
+      )
+  }
+
+  @Test
   fun rightTrigger_callsOnUpdatePrimaryButton() {
     var timesCalled = 0
     var receivedState: JoystickCursorState? = null
