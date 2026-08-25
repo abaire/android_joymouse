@@ -51,8 +51,8 @@ class SwipeVisualization(
       path.offset(dX, dY)
     }
 
-    width = ceil(totalBounds.width()).toInt()
-    height = ceil(totalBounds.height()).toInt()
+    width = maxOf(1, ceil(totalBounds.width()).toInt())
+    height = maxOf(1, ceil(totalBounds.height()).toInt())
 
     surfaceControl = buildSurfaceControl(width, height)
     val surface =
@@ -81,7 +81,7 @@ class SwipeVisualization(
     surfaceControl.release()
   }
 
-  private companion object {
+  internal companion object {
     const val OUTLINE_STROKE_DP = 20f
     const val INSIDE_STROKE_DP = OUTLINE_STROKE_DP * 0.75f
     const val ORIGIN_RADIUS_DP = 4f
@@ -105,6 +105,13 @@ class SwipeVisualization(
         totalBounds.union(pathBounds)
       }
 
+      if (totalBounds.width() <= 0f) {
+        totalBounds.right = totalBounds.left + 1f
+      }
+      if (totalBounds.height() <= 0f) {
+        totalBounds.bottom = totalBounds.top + 1f
+      }
+
       return totalBounds
     }
 
@@ -112,9 +119,9 @@ class SwipeVisualization(
       return SurfaceControl.Builder()
         .apply {
           setName("SwipeVisualizationAccessibilityOverlay")
-          setBufferSize(width, height)
+          setBufferSize(maxOf(1, width), maxOf(1, height))
           setHidden(false)
-          setFormat(PixelFormat.TRANSLUCENT)
+          setFormat(PixelFormat.RGBA_8888)
         }
         .build()
         .also { surfaceControl ->
@@ -156,15 +163,17 @@ class SwipeVisualization(
         canvas.clipRect(dirtyRect)
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
-        for (path in paths) {
-          canvas.drawPath(path, outlinePaint)
-        }
-        for (path in paths) {
-          canvas.drawPath(path, insidePaint)
-        }
+        if (paths.isNotEmpty()) {
+          for (path in paths) {
+            canvas.drawPath(path, outlinePaint)
+          }
+          for (path in paths) {
+            canvas.drawPath(path, insidePaint)
+          }
 
-        canvas.drawCircle(originX, originY, originRadius, outlinePaint)
-        canvas.drawCircle(originX, originY, originRadius, insidePaint)
+          canvas.drawCircle(originX, originY, originRadius, outlinePaint)
+          canvas.drawCircle(originX, originY, originRadius, insidePaint)
+        }
 
         unlockCanvasAndPost(canvas)
       }
