@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -46,6 +48,7 @@ import work.bearbrains.joymouse.R
 import work.bearbrains.joymouse.input.ActionBinding
 import work.bearbrains.joymouse.input.ActionConfig
 import work.bearbrains.joymouse.input.JoystickAction
+import work.bearbrains.joymouse.input.MouseStick
 import work.bearbrains.joymouse.input.ShiftModifier
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,9 +63,11 @@ fun ConfigScreen(
   var editingAction by remember { mutableStateOf<JoystickAction?>(null) }
   var isEditingShiftButton by remember { mutableStateOf(false) }
   var isEditingAltButton by remember { mutableStateOf(false) }
+  var isEditingMouseStick by remember { mutableStateOf(false) }
   var isEditingToggleChord by remember { mutableStateOf(false) }
   var showModifiersHelp by remember { mutableStateOf(false) }
-  var showSpecialActionsHelp by remember { mutableStateOf(false) }
+  var showActionsHelp by remember { mutableStateOf(false) }
+  var showResetConfirmDialog by remember { mutableStateOf(false) }
 
   Scaffold(
     topBar = {
@@ -74,11 +79,6 @@ fun ConfigScreen(
               imageVector = Icons.AutoMirrored.Filled.ArrowBack,
               contentDescription = stringResource(id = R.string.button_back),
             )
-          }
-        },
-        actions = {
-          TextButton(onClick = onResetDefaults) {
-            Text(stringResource(id = R.string.button_reset))
           }
         },
       )
@@ -100,6 +100,7 @@ fun ConfigScreen(
         )
       }
 
+      // Modifiers Section
       item {
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -137,14 +138,7 @@ fun ConfigScreen(
         )
       }
 
-      item {
-        ModifierButtonCard(
-          title = stringResource(id = R.string.config_section_toggle_chord),
-          buttonName = ActionConfig.formatChord(actionConfig.toggleChord),
-          onClick = { isEditingToggleChord = true },
-        )
-      }
-
+      // Actions Section (renamed from Special actions)
       item {
         Spacer(modifier = Modifier.height(4.dp))
         Row(
@@ -153,15 +147,15 @@ fun ConfigScreen(
           verticalAlignment = Alignment.CenterVertically,
         ) {
           Text(
-            text = stringResource(id = R.string.config_section_special_actions),
+            text = stringResource(id = R.string.config_section_actions),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
           )
-          IconButton(onClick = { showSpecialActionsHelp = true }) {
+          IconButton(onClick = { showActionsHelp = true }) {
             Icon(
               imageVector = Icons.Outlined.Info,
               contentDescription =
-                stringResource(id = R.string.config_info_special_actions_content_description),
+                stringResource(id = R.string.config_info_actions_content_description),
             )
           }
         }
@@ -176,18 +170,67 @@ fun ConfigScreen(
         )
       }
 
+      // Special Section (at the very bottom of the list)
+      item {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+          text = stringResource(id = R.string.config_section_special),
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Bold,
+        )
+      }
+
+      item {
+        ModifierButtonCard(
+          title = stringResource(id = R.string.config_mouse_stick_title),
+          buttonName = ActionConfig.getMouseControlDisplayName(actionConfig),
+          onClick = { isEditingMouseStick = true },
+        )
+      }
+
+      item {
+        ModifierButtonCard(
+          title = stringResource(id = R.string.config_section_toggle_chord),
+          buttonName = ActionConfig.formatChord(actionConfig.toggleChord),
+          onClick = { isEditingToggleChord = true },
+        )
+      }
+
       item {
         Spacer(modifier = Modifier.height(16.dp))
         Row(
           modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
           horizontalArrangement = Arrangement.Center,
         ) {
-          OutlinedButton(onClick = onResetDefaults) {
+          OutlinedButton(onClick = { showResetConfirmDialog = true }) {
             Text(stringResource(id = R.string.config_button_reset_defaults))
           }
         }
       }
     }
+  }
+
+  if (showResetConfirmDialog) {
+    AlertDialog(
+      onDismissRequest = { showResetConfirmDialog = false },
+      title = { Text(stringResource(id = R.string.config_dialog_reset_confirm_title)) },
+      text = { Text(stringResource(id = R.string.config_dialog_reset_confirm_message)) },
+      confirmButton = {
+        Button(
+          onClick = {
+            onResetDefaults()
+            showResetConfirmDialog = false
+          }
+        ) {
+          Text(stringResource(id = R.string.button_reset))
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showResetConfirmDialog = false }) {
+          Text(stringResource(id = R.string.button_cancel))
+        }
+      },
+    )
   }
 
   if (showModifiersHelp) {
@@ -203,15 +246,34 @@ fun ConfigScreen(
     )
   }
 
-  if (showSpecialActionsHelp) {
+  if (showActionsHelp) {
     AlertDialog(
-      onDismissRequest = { showSpecialActionsHelp = false },
-      title = { Text(stringResource(id = R.string.config_special_actions_info_title)) },
-      text = { Text(stringResource(id = R.string.config_special_actions_info_description)) },
+      onDismissRequest = { showActionsHelp = false },
+      title = { Text(stringResource(id = R.string.config_actions_info_title)) },
+      text = { Text(stringResource(id = R.string.config_actions_info_description)) },
       confirmButton = {
-        TextButton(onClick = { showSpecialActionsHelp = false }) {
+        TextButton(onClick = { showActionsHelp = false }) {
           Text(stringResource(id = R.string.button_ok))
         }
+      },
+    )
+  }
+
+  if (isEditingMouseStick) {
+    SelectMouseStickDialog(
+      currentStick = actionConfig.mouseStick,
+      currentInvertX = actionConfig.invertX,
+      currentInvertY = actionConfig.invertY,
+      onDismiss = { isEditingMouseStick = false },
+      onSave = { newStick, newInvertX, newInvertY ->
+        onSaveConfig(
+          actionConfig.copy(
+            mouseStick = newStick,
+            invertX = newInvertX,
+            invertY = newInvertY,
+          )
+        )
+        isEditingMouseStick = false
       },
     )
   }
@@ -271,6 +333,90 @@ fun ConfigScreen(
       },
     )
   }
+}
+
+@Composable
+private fun SelectMouseStickDialog(
+  currentStick: MouseStick,
+  currentInvertX: Boolean,
+  currentInvertY: Boolean,
+  onDismiss: () -> Unit,
+  onSave: (MouseStick, Boolean, Boolean) -> Unit,
+) {
+  var selectedStick by remember { mutableStateOf(currentStick) }
+  var invertX by remember { mutableStateOf(currentInvertX) }
+  var invertY by remember { mutableStateOf(currentInvertY) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(stringResource(id = R.string.config_dialog_select_mouse_stick_title)) },
+    text = {
+      Column(
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        Text(
+          text = stringResource(id = R.string.config_dialog_select_mouse_stick_help),
+          style = MaterialTheme.typography.bodyMedium,
+        )
+
+        // Left thumbstick on the left, Right thumbstick on the right
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          FilterChip(
+            selected = selectedStick == MouseStick.LEFT_STICK,
+            onClick = { selectedStick = MouseStick.LEFT_STICK },
+            label = { Text(MouseStick.LEFT_STICK.getDisplayName()) },
+            modifier = Modifier.weight(1f),
+          )
+          FilterChip(
+            selected = selectedStick == MouseStick.RIGHT_STICK,
+            onClick = { selectedStick = MouseStick.RIGHT_STICK },
+            label = { Text(MouseStick.RIGHT_STICK.getDisplayName()) },
+            modifier = Modifier.weight(1f),
+          )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.fillMaxWidth().clickable { invertX = !invertX },
+        ) {
+          Checkbox(checked = invertX, onCheckedChange = { invertX = it })
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = stringResource(id = R.string.config_dialog_invert_x),
+            style = MaterialTheme.typography.bodyMedium,
+          )
+        }
+
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.fillMaxWidth().clickable { invertY = !invertY },
+        ) {
+          Checkbox(checked = invertY, onCheckedChange = { invertY = it })
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = stringResource(id = R.string.config_dialog_invert_y),
+            style = MaterialTheme.typography.bodyMedium,
+          )
+        }
+      }
+    },
+    confirmButton = {
+      Button(onClick = { onSave(selectedStick, invertX, invertY) }) {
+        Text(stringResource(id = R.string.button_save))
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(id = R.string.button_cancel))
+      }
+    },
+  )
 }
 
 @Composable

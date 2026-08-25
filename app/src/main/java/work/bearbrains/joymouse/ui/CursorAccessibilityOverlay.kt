@@ -49,7 +49,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
       }
       field = value
       activeSurface?.release()
-      activeSurface = buildSurface(surfaceControl, vectorDrawable, tintColor)
+      activeSurface = buildSurface(displayInfo.context, surfaceControl, tintColor)
 
       draw(lastX, lastY)
     }
@@ -69,7 +69,7 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
       .build()
       .also { surfaceControl ->
         activeSurface?.release()
-        activeSurface = buildSurface(surfaceControl, vectorDrawable, tintColor)
+        activeSurface = buildSurface(displayInfo.context, surfaceControl, tintColor)
 
         transaction
           .setFrameRate(surfaceControl, 60f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
@@ -85,21 +85,23 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
 
   private companion object {
     fun buildSurface(
+      context: android.content.Context,
       surfaceControl: SurfaceControl,
-      vectorDrawable: VectorDrawable,
       @ColorInt tintColor: Int
     ): Surface {
+      val drawable =
+        ContextCompat.getDrawable(context, R.drawable.mouse_cursor)!!.mutate() as VectorDrawable
       return Surface(surfaceControl).apply {
         val canvas = lockHardwareCanvas()
 
-        val dirtyRect = Rect(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
+        val dirtyRect = Rect(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
         canvas.clipRect(dirtyRect)
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
-        DrawableCompat.setTint(vectorDrawable, tintColor)
-        DrawableCompat.setTintMode(vectorDrawable, PorterDuff.Mode.MULTIPLY)
-        vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
-        vectorDrawable.draw(canvas)
+        DrawableCompat.setTint(drawable, tintColor)
+        DrawableCompat.setTintMode(drawable, PorterDuff.Mode.MULTIPLY)
+        drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
+        drawable.draw(canvas)
 
         unlockCanvasAndPost(canvas)
       }

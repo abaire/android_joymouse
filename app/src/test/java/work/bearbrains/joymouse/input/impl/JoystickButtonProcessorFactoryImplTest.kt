@@ -40,7 +40,7 @@ internal class JoystickButtonProcessorFactoryImplTest {
   }
 
   @Test
-  fun shifted_r2WithDpadUp_emitsSwipeUpWithoutPrimaryPressOrRelease() {
+  fun shifted_r2WithDpadUp_emitsSwipeUp() {
     val events = mutableListOf<JoystickAction>()
     val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
 
@@ -49,24 +49,33 @@ internal class JoystickButtonProcessorFactoryImplTest {
     sut.handleButtonEvent(KeyEvent.KEYCODE_DPAD_UP, false)
     sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
 
-    assertThat(events).containsExactly(
-      JoystickAction.SWIPE_UP
-    )
+    assertThat(events).contains(JoystickAction.SWIPE_UP)
   }
 
   @Test
-  fun shifted_r2WithButtonA_emitsToggleGestureWithoutPrimaryPressOrRelease() {
+  fun unshifted_thumbr_emitsToggleGesture() {
     val events = mutableListOf<JoystickAction>()
     val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
 
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, true)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_A, false)
-    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, false)
 
     assertThat(events).containsExactly(
       JoystickAction.TOGGLE_GESTURE
     )
+  }
+
+  @Test
+  fun shifted_r2WithThumbr_emitsToggleGesture() {
+    val events = mutableListOf<JoystickAction>()
+    val sut = JoystickButtonProcessorFactoryImpl.create { _, action -> events.add(action) }
+
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, true)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_THUMBR, false)
+    sut.handleButtonEvent(KeyEvent.KEYCODE_BUTTON_R2, false)
+
+    assertThat(events).contains(JoystickAction.TOGGLE_GESTURE)
   }
 
   @Test

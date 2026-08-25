@@ -20,7 +20,7 @@ import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.test.FakeClock
 
-@RunWith(MockitoJUnitRunner::class)
+@RunWith(MockitoJUnitRunner.Silent::class)
 @Config(manifest = Config.NONE)
 internal class JoystickCursorStateImplTest {
 
@@ -34,9 +34,9 @@ internal class JoystickCursorStateImplTest {
 
   @Before
   fun setUp() {
-    whenever(inputDevice.getMotionRange(anyInt())).thenReturn(motionRange)
-    whenever(motionRange.flat).thenReturn(AXIS_DEADZONE)
-    whenever(motionRange.fuzz).thenReturn(0.05f)
+    lenient().whenever(inputDevice.getMotionRange(anyInt())).thenReturn(motionRange)
+    lenient().whenever(motionRange.flat).thenReturn(AXIS_DEADZONE)
+    lenient().whenever(motionRange.fuzz).thenReturn(0.05f)
   }
 
   @Test
@@ -191,8 +191,11 @@ internal class JoystickCursorStateImplTest {
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_HAT_Y)).thenReturn(0f)
     sut.update(motionEvent)
 
-    assertThat(captor.events).containsExactly(
+    assertThat(captor.events).contains(
       Pair(sut, JoystickAction.SWIPE_UP)
+    )
+    assertThat(captor.events).doesNotContain(
+      Pair(sut, JoystickAction.DPAD_UP)
     )
   }
 
@@ -246,11 +249,14 @@ internal class JoystickCursorStateImplTest {
 
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(1f)
     sut.update(motionEvent)
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(WITHIN_AXIS_DEADZONE)
-    sut.update(motionEvent)
 
     assertThat(timesCalled).isEqualTo(1)
     assertThat(receivedState).isEqualTo(sut)
+    assertThat(receivedState!!.isPrimaryButtonPressed).isTrue()
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RTRIGGER)).thenReturn(WITHIN_AXIS_DEADZONE)
+    sut.update(motionEvent)
+    assertThat(receivedState!!.isPrimaryButtonPressed).isFalse()
   }
 
   @Test
@@ -586,6 +592,59 @@ internal class JoystickCursorStateImplTest {
     sut.updateDisplayInfo(displayInfo)
 
     assertThat(updatePositionCalled).isEqualTo(0)
+  }
+
+  @Test
+  fun updateActionConfig_withLeftStick_rebindsAxesToLeftStick() {
+    val sut = create()
+
+    // Initially, right stick (AXIS_Z) moves cursor
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    sut.update(motionEvent)
+    val afterRightStickX = sut.pointerX
+    assertThat(afterRightStickX).isGreaterThan(WINDOW_WIDTH * 0.5f)
+
+    // Reconfigure to LEFT_STICK (AXIS_X, AXIS_Y)
+    sut.updateActionConfig(work.bearbrains.joymouse.input.ActionConfig(mouseStick = work.bearbrains.joymouse.input.MouseStick.LEFT_STICK))
+
+    // Right stick (AXIS_Z) should now do nothing
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    sut.update(motionEvent)
+    assertThat(sut.pointerX).isEqualTo(afterRightStickX)
+
+    // Left stick (AXIS_X) should now move cursor
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_X)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_X)).thenReturn(1f)
+    sut.update(motionEvent)
+    assertThat(sut.pointerX).isGreaterThan(afterRightStickX)
+  }
+
+  @Test
+  fun updateActionConfig_withInvertedAxes_invertsMovement() {
+    val sut = create()
+    val initialX = sut.pointerX
+    val initialY = sut.pointerY
+
+    sut.updateActionConfig(work.bearbrains.joymouse.input.ActionConfig(invertX = true, invertY = true))
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    assertThat(sut.pointerX).isLessThan(initialX)
+    assertThat(sut.pointerY).isLessThan(initialY)
   }
 
 

@@ -282,6 +282,57 @@ internal class GestureBuilderImplTest {
       .isAtMost(MOCK_MAX_GESTURE_DURATION.inWholeMilliseconds)
   }
 
+  @Test
+  fun dragIsFling_whenSetToTrue_immediatelyChangesActionToFling() {
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        gestureDescriptionBuilderProvider,
+      )
+
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.TOUCH)
+    sut.dragIsFling = true
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.FLING)
+
+    sut.dragIsFling = false
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.TOUCH)
+  }
+
+  @Test
+  fun dragIsFling_duringDragMotion_togglesBetweenDragAndFling() {
+    val sut =
+      GestureBuilderImpl(
+        FakeJoystickCursorState(displayInfo),
+        gestureUtil,
+        clock,
+        gestureDescriptionBuilderProvider,
+      )
+    sut.cursorMove(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = GestureBuilder.MIN_DRAG_DISTANCE,
+      )
+    )
+
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.DRAG)
+
+    sut.dragIsFling = true
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.FLING)
+
+    sut.dragIsFling = false
+    sut.cursorMove(
+      FakeJoystickCursorState(
+        displayInfo,
+        pointerX = 0f,
+        pointerY = GestureBuilder.MIN_DRAG_DISTANCE + 10f,
+      )
+    )
+    Truth.assertThat(sut.action).isEqualTo(GestureBuilder.Action.DRAG)
+  }
+
   private companion object {
     val MOCK_MAX_GESTURE_DURATION = 2000.milliseconds
   }

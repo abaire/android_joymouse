@@ -1,5 +1,6 @@
 package work.bearbrains.joymouse.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -11,13 +12,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -25,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import work.bearbrains.joymouse.R
 import work.bearbrains.joymouse.input.ActionConfig
+import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.ShiftModifier
 
 @Composable
@@ -35,6 +45,8 @@ fun MainScreen(
   onLaunchAccessibilitySettings: () -> Unit,
   onNavigateToConfig: () -> Unit = {},
 ) {
+  var isUsageExpanded by rememberSaveable { mutableStateOf(false) }
+
   val shiftButtonFriendly = ActionConfig.getFriendlyButtonName(actionConfig.shiftButton)
   val altButtonFriendly = ActionConfig.getFriendlyButtonName(actionConfig.altButton)
 
@@ -55,33 +67,97 @@ fun MainScreen(
       verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
     ) {
       item {
-        Text(
-          text = stringResource(id = R.string.operating_instructions_section_title),
-          style = MaterialTheme.typography.headlineMedium
-        )
-      }
-      item {
-        Text(
-          text = stringResource(id = R.string.operating_instructions, shiftButtonFriendly)
-        )
-      }
-      item {
-        Text(
-          text =
-            stringResource(
-              id = R.string.operating_instructions_primary_button,
-              altButtonFriendly,
-            )
-        )
-      }
-      item {
-        Text(
-          text =
-            stringResource(
-              id = R.string.operating_instructions_toggle_chord_template,
-              ActionConfig.formatChord(actionConfig.toggleChord),
-            )
-        )
+        Card(
+          modifier = Modifier.fillMaxWidth().clickable { isUsageExpanded = !isUsageExpanded },
+          colors =
+            CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+        ) {
+          Column(
+            modifier = Modifier.fillMaxWidth().padding(LayoutTokens.COLUMN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = stringResource(id = R.string.operating_instructions_section_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+              )
+              Icon(
+                imageVector =
+                  if (isUsageExpanded) Icons.Default.KeyboardArrowUp
+                  else Icons.Default.KeyboardArrowDown,
+                contentDescription =
+                  stringResource(
+                    if (isUsageExpanded) R.string.content_description_collapse_usage
+                    else R.string.content_description_expand_usage
+                  ),
+              )
+            }
+
+            if (isUsageExpanded) {
+              val mouseStickFriendly = actionConfig.mouseStick.getFriendlyName()
+              val activateBinding = actionConfig.actionBindings[JoystickAction.ACTIVATE]
+              val toggleGestureBinding = actionConfig.actionBindings[JoystickAction.TOGGLE_GESTURE]
+
+              val activateText =
+                if (activateBinding != null && activateBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(activateBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              val toggleGestureText =
+                if (toggleGestureBinding != null && toggleGestureBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(toggleGestureBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              val fastCursorBinding = actionConfig.actionBindings[JoystickAction.FAST_CURSOR]
+              val fastCursorText =
+                if (fastCursorBinding != null && fastCursorBinding.keyCodes.isNotEmpty()) {
+                  ActionConfig.formatBinding(fastCursorBinding)
+                } else {
+                  stringResource(id = R.string.config_unassigned)
+                }
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_movement_template,
+                    mouseStickFriendly,
+                    fastCursorText,
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_activate_template,
+                    activateText,
+                    toggleGestureText,
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+
+              Text(
+                text =
+                  stringResource(
+                    id = R.string.operating_instructions_toggle_chord_template,
+                    ActionConfig.formatChord(actionConfig.toggleChord),
+                  ),
+                style = MaterialTheme.typography.bodyMedium,
+              )
+            }
+          }
+        }
       }
 
       item {

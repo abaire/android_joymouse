@@ -17,17 +17,20 @@ private constructor(
   override val deviceId: Int,
   override var displayInfo: DisplayInfo,
   private val handler: Handler,
-  private val xAxis: RangedAxis,
-  private val yAxis: RangedAxis,
+  private var xAxis: RangedAxis,
+  private var yAxis: RangedAxis,
   private val buttonAxes: List<ButtonAxis>,
   private val nanoClock: NanoClock,
   private val buttonProcessorFactory: JoystickButtonProcessor.Factory,
   private val onUpdatePosition: (JoystickCursorState) -> Unit,
   private val onAction: (JoystickCursorState, JoystickAction) -> Unit,
+  private val device: InputDevice? = null,
   initialConfig: ActionConfig = ActionConfig.DEFAULT,
 ) : JoystickCursorState {
 
   private var buttonProcessor: JoystickButtonProcessor = createButtonProcessor(initialConfig)
+  private var invertX: Boolean = initialConfig.invertX
+  private var invertY: Boolean = initialConfig.invertY
 
   private fun createButtonProcessor(config: ActionConfig): JoystickButtonProcessor {
     return buttonProcessorFactory.create(config) { _, action ->
@@ -60,6 +63,14 @@ private constructor(
   override fun updateActionConfig(config: ActionConfig) {
     buttonProcessor.reset()
     buttonProcessor = createButtonProcessor(config)
+    invertX = config.invertX
+    invertY = config.invertY
+
+    val dev = device ?: InputDevice.getDevice(deviceId)
+    val rangeX = dev?.getMotionRange(config.mouseStick.xAxis)
+    val rangeY = dev?.getMotionRange(config.mouseStick.yAxis)
+    xAxis = RangedAxis(config.mouseStick.xAxis, rangeX)
+    yAxis = RangedAxis(config.mouseStick.yAxis, rangeY)
   }
 
   private val eventRepeater =
@@ -175,8 +186,11 @@ private constructor(
         defaultVelocityPixelsPerNanosecond
       }
 
-    val dX = xAxis.deflection * timeDelta * velocity
-    val dY = yAxis.deflection * timeDelta * velocity
+    val xMultiplier = if (invertX) -1f else 1f
+    val yMultiplier = if (invertY) -1f else 1f
+
+    val dX = xAxis.deflection * timeDelta * velocity * xMultiplier
+    val dY = yAxis.deflection * timeDelta * velocity * yMultiplier
 
     pointerX = (pointerX + dX).coerceIn(0f, displayInfo.windowWidth)
     pointerY = (pointerY + dY).coerceIn(0f, displayInfo.windowHeight)
@@ -225,8 +239,8 @@ private constructor(
       device: InputDevice,
       displayInfo: DisplayInfo,
       handler: Handler,
-      xAxis: Int,
-      yAxis: Int,
+      xAxis: Int = config.mouseStick.xAxis,
+      yAxis: Int = config.mouseStick.yAxis,
       nanoClock: NanoClock,
       buttonProcessorFactory: JoystickButtonProcessor.Factory,
       onUpdatePosition: (JoystickCursorState) -> Unit,
@@ -283,6 +297,7 @@ private constructor(
         buttonProcessorFactory,
         onUpdatePosition,
         onAction,
+        device = device,
         initialConfig = config,
       )
     }

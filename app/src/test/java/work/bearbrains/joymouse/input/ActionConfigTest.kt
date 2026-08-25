@@ -26,6 +26,19 @@ class ActionConfigTest {
       .containsExactly(KeyEvent.KEYCODE_BUTTON_START)
     assertThat(config.actionBindings[JoystickAction.RECENTS]?.modifier).isEqualTo(ShiftModifier.NONE)
 
+    assertThat(config.actionBindings[JoystickAction.ACTIVATE]?.keyCodes)
+      .containsExactly(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_R2)
+    assertThat(config.actionBindings[JoystickAction.ACTIVATE]?.modifier).isEqualTo(ShiftModifier.NONE)
+
+    assertThat(config.actionBindings[JoystickAction.FAST_CURSOR]?.keyCodes)
+      .containsExactly(KeyEvent.KEYCODE_BUTTON_L2)
+    assertThat(config.actionBindings[JoystickAction.FAST_CURSOR]?.modifier).isEqualTo(ShiftModifier.NONE)
+
+    assertThat(config.actionBindings[JoystickAction.TOGGLE_GESTURE]?.keyCodes)
+      .containsExactly(KeyEvent.KEYCODE_BUTTON_THUMBR)
+    assertThat(config.actionBindings[JoystickAction.TOGGLE_GESTURE]?.modifier)
+      .isEqualTo(ShiftModifier.NONE)
+
     assertThat(config.actionBindings[JoystickAction.CYCLE_DISPLAY_BACKWARD]?.keyCodes)
       .containsExactly(KeyEvent.KEYCODE_BUTTON_L1)
     assertThat(config.actionBindings[JoystickAction.CYCLE_DISPLAY_BACKWARD]?.modifier)
@@ -57,11 +70,6 @@ class ActionConfigTest {
       .containsExactly(KeyEvent.KEYCODE_DPAD_RIGHT)
     assertThat(config.actionBindings[JoystickAction.SWIPE_RIGHT]?.modifier).isEqualTo(ShiftModifier.ALT)
 
-    assertThat(config.actionBindings[JoystickAction.TOGGLE_GESTURE]?.keyCodes)
-      .containsExactly(KeyEvent.KEYCODE_BUTTON_A)
-    assertThat(config.actionBindings[JoystickAction.TOGGLE_GESTURE]?.modifier)
-      .isEqualTo(ShiftModifier.ALT)
-
     assertThat(config.toggleChord)
       .containsExactly(
         KeyEvent.KEYCODE_BUTTON_L1,
@@ -71,11 +79,16 @@ class ActionConfigTest {
 
     assertThat(config.shiftButton).isEqualTo(KeyEvent.KEYCODE_BUTTON_L2)
     assertThat(config.altButton).isEqualTo(KeyEvent.KEYCODE_BUTTON_R2)
+    assertThat(config.mouseStick).isEqualTo(MouseStick.RIGHT_STICK)
+    assertThat(config.invertX).isFalse()
+    assertThat(config.invertY).isFalse()
   }
 
   @Test
   fun remappableActions_containsActivateAndSpecialActions() {
     assertThat(ActionConfig.REMAPPABLE_ACTIONS).contains(JoystickAction.ACTIVATE)
+    assertThat(ActionConfig.REMAPPABLE_ACTIONS).contains(JoystickAction.FAST_CURSOR)
+    assertThat(ActionConfig.REMAPPABLE_ACTIONS).contains(JoystickAction.TOGGLE_GESTURE)
     assertThat(ActionConfig.REMAPPABLE_ACTIONS).doesNotContain(JoystickAction.DPAD_UP)
     assertThat(ActionConfig.REMAPPABLE_ACTIONS).doesNotContain(JoystickAction.DPAD_DOWN)
     assertThat(ActionConfig.REMAPPABLE_ACTIONS).doesNotContain(JoystickAction.DPAD_LEFT)
@@ -112,6 +125,9 @@ class ActionConfigTest {
         toggleChord = customChord,
         shiftButton = KeyEvent.KEYCODE_BUTTON_L1,
         altButton = KeyEvent.KEYCODE_BUTTON_R1,
+        mouseStick = MouseStick.LEFT_STICK,
+        invertX = true,
+        invertY = true,
       )
 
     val jsonString = config.toJson()
@@ -129,6 +145,9 @@ class ActionConfigTest {
     assertThat(restored.toggleChord).containsExactly(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_START)
     assertThat(restored.shiftButton).isEqualTo(KeyEvent.KEYCODE_BUTTON_L1)
     assertThat(restored.altButton).isEqualTo(KeyEvent.KEYCODE_BUTTON_R1)
+    assertThat(restored.mouseStick).isEqualTo(MouseStick.LEFT_STICK)
+    assertThat(restored.invertX).isTrue()
+    assertThat(restored.invertY).isTrue()
 
     // Verify missing actions in JSON fallback to defaults
     assertThat(restored.actionBindings[JoystickAction.CYCLE_DISPLAY_FORWARD]?.keyCodes)
@@ -146,7 +165,7 @@ class ActionConfigTest {
     assertThat(ActionConfig.formatBinding(multiplexed)).isEqualTo("`Select` or `B`")
 
     val single = ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_L1))
-    assertThat(ActionConfig.formatBinding(single)).isEqualTo("`Left shoulder`")
+    assertThat(ActionConfig.formatBinding(single)).isEqualTo("`Left bumper`")
 
     val chord =
       ActionBinding(
@@ -163,7 +182,7 @@ class ActionConfigTest {
   @Test
   fun formatChord_formatsCorrectly() {
     val chord = setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_X)
-    assertThat(ActionConfig.formatChord(chord)).isEqualTo("`Left shoulder` + `Right shoulder` + `X`")
+    assertThat(ActionConfig.formatChord(chord)).isEqualTo("`Left bumper` + `Right bumper` + `X`")
   }
 
   @Test
@@ -183,12 +202,34 @@ class ActionConfigTest {
     assertThat(ActionConfig.getActionDisplayName(JoystickAction.SELECT_PRIMARY_DEVICE)).isEqualTo("Choose active controller")
     assertThat(ActionConfig.getActionDisplayName(JoystickAction.TOGGLE_GESTURE)).isEqualTo("Toggle drag or fling gesture")
     assertThat(ActionConfig.getActionDisplayName(JoystickAction.RECENTS)).isEqualTo("Recent apps")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.ACTIVATE)).isEqualTo("Activate")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.FAST_CURSOR)).isEqualTo("Fast cursor")
   }
 
   @Test
   fun friendlyButtonName_formatsCorrectly() {
     assertThat(ActionConfig.getFriendlyButtonName(KeyEvent.KEYCODE_BUTTON_L2)).isEqualTo("left trigger")
     assertThat(ActionConfig.getFriendlyButtonName(KeyEvent.KEYCODE_BUTTON_R2)).isEqualTo("right trigger")
-    assertThat(ActionConfig.getFriendlyButtonName(KeyEvent.KEYCODE_BUTTON_L1)).isEqualTo("left shoulder")
+    assertThat(ActionConfig.getFriendlyButtonName(KeyEvent.KEYCODE_BUTTON_L1)).isEqualTo("left bumper")
+  }
+
+  @Test
+  fun mouseStick_names_formatCorrectly() {
+    assertThat(MouseStick.RIGHT_STICK.getDisplayName()).isEqualTo("Right thumbstick")
+    assertThat(MouseStick.LEFT_STICK.getDisplayName()).isEqualTo("Left thumbstick")
+    assertThat(MouseStick.RIGHT_STICK.getFriendlyName()).isEqualTo("right thumbstick")
+    assertThat(MouseStick.LEFT_STICK.getFriendlyName()).isEqualTo("left thumbstick")
+  }
+
+  @Test
+  fun mouseControlDisplayName_formatsInvertState() {
+    val normal = ActionConfig(mouseStick = MouseStick.RIGHT_STICK, invertX = false, invertY = false)
+    assertThat(ActionConfig.getMouseControlDisplayName(normal)).isEqualTo("Right thumbstick")
+
+    val invertX = ActionConfig(mouseStick = MouseStick.LEFT_STICK, invertX = true, invertY = false)
+    assertThat(ActionConfig.getMouseControlDisplayName(invertX)).isEqualTo("Left thumbstick (Invert X)")
+
+    val invertBoth = ActionConfig(mouseStick = MouseStick.RIGHT_STICK, invertX = true, invertY = true)
+    assertThat(ActionConfig.getMouseControlDisplayName(invertBoth)).isEqualTo("Right thumbstick (Invert X, Invert Y)")
   }
 }

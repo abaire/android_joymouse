@@ -578,31 +578,52 @@ class MouseAccessibilityService :
   private fun onAction(state: JoystickCursorState, action: JoystickAction) {
     Log.d(TAG, "onAction ${action} for state ${state}")
     when (action) {
+      JoystickAction.PRIMARY_PRESS,
+      JoystickAction.PRIMARY_RELEASE -> {
+        onUpdatePrimaryButton(state)
+      }
+      JoystickAction.FAST_CURSOR_PRESS,
+      JoystickAction.FAST_CURSOR_RELEASE -> {
+        // Intentionally ignored
+      }
+      JoystickAction.TOGGLE_GESTURE -> {
+        activeGestureBuilder?.let {
+          it.dragIsFling = !it.dragIsFling
+          updateCursorPosition(state)
+        }
+      }
       JoystickAction.SELECT_PRIMARY_DEVICE -> {
+        resetGestureState()
         showControllerPicker(state)
       }
       JoystickAction.CYCLE_DISPLAY_FORWARD -> {
+        resetGestureState()
         cycleDisplay(state, true)
       }
       JoystickAction.CYCLE_DISPLAY_BACKWARD -> {
+        resetGestureState()
         cycleDisplay(state, false)
       }
       JoystickAction.SWIPE_UP -> {
+        resetGestureState()
         dispatchFling(state, 0f, -SWIPE_DISTANCE)
       }
       JoystickAction.SWIPE_DOWN -> {
+        resetGestureState()
         dispatchFling(state, 0f, SWIPE_DISTANCE)
       }
       JoystickAction.SWIPE_LEFT -> {
+        resetGestureState()
         dispatchFling(state, -SWIPE_DISTANCE, 0f)
       }
       JoystickAction.SWIPE_RIGHT -> {
+        resetGestureState()
         dispatchFling(state, SWIPE_DISTANCE, 0f)
       }
       JoystickAction.TOGGLE_ENABLED -> {
+        resetGestureState()
         isEnabled = state.isEnabled
         if (!state.isEnabled) {
-          resetGestureState()
           val cursorState = displayIdToCursorDisplayState.get(state.displayInfo.displayId)
           if (cursorState == null) {
             Log.e(TAG, "Ignoring onEnabledChange display ID ${state.displayInfo.displayId}")
@@ -613,21 +634,8 @@ class MouseAccessibilityService :
           updateCursorPosition(state)
         }
       }
-      JoystickAction.TOGGLE_GESTURE -> {
-        activeGestureBuilder?.let {
-          it.dragIsFling = !it.dragIsFling
-          updateCursorPosition(state)
-        }
-      }
-      JoystickAction.PRIMARY_PRESS,
-      JoystickAction.PRIMARY_RELEASE -> {
-        onUpdatePrimaryButton(state)
-      }
-      JoystickAction.FAST_CURSOR_PRESS,
-      JoystickAction.FAST_CURSOR_RELEASE -> {
-        // Intentionally ignored
-      }
       else -> {
+        resetGestureState()
         val globalAction = action.toGlobalAction()
         if (globalAction != null) {
           performGlobalAction(globalAction)
@@ -885,10 +893,10 @@ class MouseAccessibilityService :
         device = device,
         displayInfo = getValidDisplayInfo(),
         handler = handler,
-        xAxis = X_AXIS,
-        yAxis = Y_AXIS,
+        xAxis = config.mouseStick.xAxis,
+        yAxis = config.mouseStick.yAxis,
         nanoClock = NanoClockImpl(),
-        JoystickButtonProcessorFactoryImpl,
+        buttonProcessorFactory = JoystickButtonProcessorFactoryImpl,
         onUpdatePosition = ::updateCursorPosition,
         onAction = ::onAction,
         config = config,
@@ -1027,10 +1035,10 @@ private class CursorDisplayState(
     val TINT_MAP =
       mapOf(
         State.STATE_RELEASED to Color.WHITE,
-        State.STATE_PRESSED_TAP to Color.argb(0.65f, 1.0f, 1.0f, 1.0f),
-        State.STATE_PRESSED_LONG_TOUCH to Color.argb(0.65f, 0.5f, 1.0f, 0.5f),
-        State.STATE_PRESSED_SLOW_DRAG to Color.argb(0.65f, 1.0f, 0.8f, 0.5f),
-        State.STATE_PRESSED_FLING to Color.argb(0.65f, 1.0f, 0.4f, 0.6f),
+        State.STATE_PRESSED_TAP to Color.rgb(200, 225, 255),
+        State.STATE_PRESSED_LONG_TOUCH to Color.rgb(76, 217, 100),
+        State.STATE_PRESSED_SLOW_DRAG to Color.rgb(33, 150, 243),
+        State.STATE_PRESSED_FLING to Color.rgb(255, 64, 129),
       )
   }
 

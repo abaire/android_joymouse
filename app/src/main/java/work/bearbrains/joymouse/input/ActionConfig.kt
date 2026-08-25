@@ -1,6 +1,7 @@
 package work.bearbrains.joymouse.input
 
 import android.view.KeyEvent
+import android.view.MotionEvent
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,6 +22,24 @@ enum class ShiftModifier {
       ALTSHIFT -> "Shift + Alt"
     }
   }
+}
+
+/** Configurable thumbstick used for controlling the mouse cursor. */
+enum class MouseStick(val xAxis: Int, val yAxis: Int) {
+  RIGHT_STICK(MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ),
+  LEFT_STICK(MotionEvent.AXIS_X, MotionEvent.AXIS_Y);
+
+  fun getDisplayName(): String =
+    when (this) {
+      RIGHT_STICK -> "Right thumbstick"
+      LEFT_STICK -> "Left thumbstick"
+    }
+
+  fun getFriendlyName(): String =
+    when (this) {
+      RIGHT_STICK -> "right thumbstick"
+      LEFT_STICK -> "left thumbstick"
+    }
 }
 
 /** Describes how a [JoystickAction] is bound to a physical button or button combination. */
@@ -60,12 +79,15 @@ data class ActionBinding(
   }
 }
 
-/** Configuration mapping special [JoystickAction]s. */
+/** Configuration mapping special [JoystickAction]s, shift/alt modifier buttons, mouse stick, and toggle chord. */
 data class ActionConfig(
   val actionBindings: Map<JoystickAction, ActionBinding> = DEFAULT_ACTION_BINDINGS,
   val toggleChord: Set<Int> = DEFAULT_TOGGLE_CHORD,
   val shiftButton: Int = DEFAULT_SHIFT_BUTTON,
   val altButton: Int = DEFAULT_ALT_BUTTON,
+  val mouseStick: MouseStick = DEFAULT_MOUSE_STICK,
+  val invertX: Boolean = false,
+  val invertY: Boolean = false,
 ) {
 
   init {
@@ -88,6 +110,9 @@ data class ActionConfig(
 
     json.put("shiftButton", shiftButton)
     json.put("altButton", altButton)
+    json.put("mouseStick", mouseStick.name)
+    json.put("invertX", invertX)
+    json.put("invertY", invertY)
 
     return json.toString()
   }
@@ -95,6 +120,7 @@ data class ActionConfig(
   companion object {
     const val DEFAULT_SHIFT_BUTTON = KeyEvent.KEYCODE_BUTTON_L2
     const val DEFAULT_ALT_BUTTON = KeyEvent.KEYCODE_BUTTON_R2
+    val DEFAULT_MOUSE_STICK = MouseStick.RIGHT_STICK
 
     /** Special actions that can be remapped to buttons. */
     val REMAPPABLE_ACTIONS: List<JoystickAction> =
@@ -103,6 +129,8 @@ data class ActionConfig(
         JoystickAction.HOME,
         JoystickAction.RECENTS,
         JoystickAction.ACTIVATE,
+        JoystickAction.FAST_CURSOR,
+        JoystickAction.TOGGLE_GESTURE,
         JoystickAction.CYCLE_DISPLAY_BACKWARD,
         JoystickAction.CYCLE_DISPLAY_FORWARD,
         JoystickAction.SELECT_PRIMARY_DEVICE,
@@ -110,7 +138,6 @@ data class ActionConfig(
         JoystickAction.SWIPE_DOWN,
         JoystickAction.SWIPE_LEFT,
         JoystickAction.SWIPE_RIGHT,
-        JoystickAction.TOGGLE_GESTURE,
       )
 
     val AVAILABLE_BUTTONS: List<Int> =
@@ -154,13 +181,21 @@ data class ActionConfig(
         JoystickAction.RECENTS to
           ActionBinding(ShiftModifier.NONE, setOf(KeyEvent.KEYCODE_BUTTON_START)),
         JoystickAction.ACTIVATE to
-          ActionBinding(ShiftModifier.NONE, emptySet()),
+          ActionBinding(
+            ShiftModifier.NONE,
+            setOf(KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_R2),
+            isChord = false,
+          ),
+        JoystickAction.FAST_CURSOR to
+          ActionBinding(ShiftModifier.NONE, setOf(KeyEvent.KEYCODE_BUTTON_L2)),
+        JoystickAction.TOGGLE_GESTURE to
+          ActionBinding(ShiftModifier.NONE, setOf(KeyEvent.KEYCODE_BUTTON_THUMBR)),
         JoystickAction.CYCLE_DISPLAY_BACKWARD to
-          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_L1), isChord = true),
+          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_L1)),
         JoystickAction.CYCLE_DISPLAY_FORWARD to
-          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_R1), isChord = true),
+          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_R1)),
         JoystickAction.SELECT_PRIMARY_DEVICE to
-          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_SELECT), isChord = true),
+          ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_SELECT)),
         JoystickAction.SWIPE_UP to
           ActionBinding(ShiftModifier.ALT, setOf(KeyEvent.KEYCODE_DPAD_UP)),
         JoystickAction.SWIPE_DOWN to
@@ -169,8 +204,6 @@ data class ActionConfig(
           ActionBinding(ShiftModifier.ALT, setOf(KeyEvent.KEYCODE_DPAD_LEFT)),
         JoystickAction.SWIPE_RIGHT to
           ActionBinding(ShiftModifier.ALT, setOf(KeyEvent.KEYCODE_DPAD_RIGHT)),
-        JoystickAction.TOGGLE_GESTURE to
-          ActionBinding(ShiftModifier.ALT, setOf(KeyEvent.KEYCODE_BUTTON_A), isChord = true),
       )
 
     val DEFAULT = ActionConfig()
@@ -212,11 +245,24 @@ data class ActionConfig(
           altButton = if (shiftButton == DEFAULT_ALT_BUTTON) DEFAULT_SHIFT_BUTTON else DEFAULT_ALT_BUTTON
         }
 
+        val mouseStick =
+          try {
+            MouseStick.valueOf(json.optString("mouseStick", DEFAULT_MOUSE_STICK.name))
+          } catch (_: Exception) {
+            DEFAULT_MOUSE_STICK
+          }
+
+        val invertX = json.optBoolean("invertX", false)
+        val invertY = json.optBoolean("invertY", false)
+
         ActionConfig(
           actionBindings = bindingsMap,
           toggleChord = toggleChord,
           shiftButton = shiftButton,
           altButton = altButton,
+          mouseStick = mouseStick,
+          invertX = invertX,
+          invertY = invertY,
         )
       } catch (_: Exception) {
         DEFAULT
@@ -229,8 +275,8 @@ data class ActionConfig(
         KeyEvent.KEYCODE_BUTTON_B -> "B"
         KeyEvent.KEYCODE_BUTTON_X -> "X"
         KeyEvent.KEYCODE_BUTTON_Y -> "Y"
-        KeyEvent.KEYCODE_BUTTON_L1 -> "Left shoulder"
-        KeyEvent.KEYCODE_BUTTON_R1 -> "Right shoulder"
+        KeyEvent.KEYCODE_BUTTON_L1 -> "Left bumper"
+        KeyEvent.KEYCODE_BUTTON_R1 -> "Right bumper"
         KeyEvent.KEYCODE_BUTTON_L2 -> "Left trigger"
         KeyEvent.KEYCODE_BUTTON_R2 -> "Right trigger"
         KeyEvent.KEYCODE_BUTTON_SELECT -> "Select"
@@ -252,8 +298,8 @@ data class ActionConfig(
         KeyEvent.KEYCODE_BUTTON_B -> "B button"
         KeyEvent.KEYCODE_BUTTON_X -> "X button"
         KeyEvent.KEYCODE_BUTTON_Y -> "Y button"
-        KeyEvent.KEYCODE_BUTTON_L1 -> "left shoulder"
-        KeyEvent.KEYCODE_BUTTON_R1 -> "right shoulder"
+        KeyEvent.KEYCODE_BUTTON_L1 -> "left bumper"
+        KeyEvent.KEYCODE_BUTTON_R1 -> "right bumper"
         KeyEvent.KEYCODE_BUTTON_L2 -> "left trigger"
         KeyEvent.KEYCODE_BUTTON_R2 -> "right trigger"
         KeyEvent.KEYCODE_BUTTON_SELECT -> "Select button"
@@ -266,6 +312,18 @@ data class ActionConfig(
         KeyEvent.KEYCODE_DPAD_LEFT -> "D-pad left"
         KeyEvent.KEYCODE_DPAD_RIGHT -> "D-pad right"
         else -> getButtonDisplayName(keyCode).lowercase()
+      }
+    }
+
+    fun getMouseControlDisplayName(config: ActionConfig): String {
+      val stickName = config.mouseStick.getDisplayName()
+      val inverts = mutableListOf<String>()
+      if (config.invertX) inverts.add("Invert X")
+      if (config.invertY) inverts.add("Invert Y")
+      return if (inverts.isNotEmpty()) {
+        "$stickName (${inverts.joinToString(", ")})"
+      } else {
+        stickName
       }
     }
 
@@ -309,6 +367,7 @@ data class ActionConfig(
         JoystickAction.TOGGLE_ENABLED -> "Toggle JoyMouse shortcut"
         JoystickAction.PRIMARY_PRESS,
         JoystickAction.PRIMARY_RELEASE -> "Primary click"
+        JoystickAction.FAST_CURSOR,
         JoystickAction.FAST_CURSOR_PRESS,
         JoystickAction.FAST_CURSOR_RELEASE -> "Fast cursor"
       }
@@ -319,7 +378,8 @@ data class ActionConfig(
         JoystickAction.BACK -> "`BACK`"
         JoystickAction.HOME -> "`HOME`"
         JoystickAction.RECENTS -> "`START`"
-        JoystickAction.ACTIVATE -> "`ACTIVATE`"
+        JoystickAction.ACTIVATE -> "activate at cursor"
+        JoystickAction.FAST_CURSOR -> "move cursor faster"
         JoystickAction.DPAD_UP -> "`DPAD_UP`"
         JoystickAction.DPAD_DOWN -> "`DPAD_DOWN`"
         JoystickAction.DPAD_LEFT -> "`DPAD_LEFT`"

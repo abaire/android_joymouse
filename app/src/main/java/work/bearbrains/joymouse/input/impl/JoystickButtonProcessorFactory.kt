@@ -35,40 +35,54 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
     unshifted.add(mapping(basicButton(KeyEvent.KEYCODE_DPAD_LEFT), onRelease = JoystickAction.DPAD_LEFT))
     unshifted.add(mapping(basicButton(KeyEvent.KEYCODE_DPAD_RIGHT), onRelease = JoystickAction.DPAD_RIGHT))
 
-    // Standard primary button and fast cursor actions
-    unshifted.add(
-      mapping(
-        basicButton(KeyEvent.KEYCODE_BUTTON_A),
-        onPress = JoystickAction.PRIMARY_PRESS,
-        onRelease = JoystickAction.PRIMARY_RELEASE,
-      )
-    )
-    unshifted.add(
-      mapping(
-        basicButton(config.altButton),
-        onPress = JoystickAction.PRIMARY_PRESS,
-        onRelease = JoystickAction.PRIMARY_RELEASE,
-      )
-    )
-    unshifted.add(
-      mapping(
-        basicButton(config.shiftButton),
-        onPress = JoystickAction.FAST_CURSOR_PRESS,
-        onRelease = JoystickAction.FAST_CURSOR_RELEASE,
-      )
-    )
-
     for ((action, binding) in config.actionBindings) {
       if (binding.keyCodes.isEmpty()) {
         continue
       }
-      val button = VirtualButton(binding.keyCodes, isChord = binding.isChord)
-      val buttonMapping = mapping(button, onRelease = action)
-      when (binding.modifier) {
-        ShiftModifier.NONE -> unshifted.add(buttonMapping)
-        ShiftModifier.SHIFT -> leftShifted.add(buttonMapping)
-        ShiftModifier.ALT -> rightShifted.add(buttonMapping)
-        ShiftModifier.ALTSHIFT -> dualShifted.add(buttonMapping)
+      val virtualButtons =
+        if (binding.isChord) {
+          listOf(VirtualButton(binding.keyCodes, isChord = true))
+        } else {
+          binding.keyCodes.map { basicButton(it) }
+        }
+
+      for (button in virtualButtons) {
+        val buttonMapping =
+          when (action) {
+            JoystickAction.ACTIVATE ->
+              mapping(
+                button,
+                onPress = JoystickAction.PRIMARY_PRESS,
+                onRelease = JoystickAction.PRIMARY_RELEASE,
+              )
+            JoystickAction.FAST_CURSOR ->
+              mapping(
+                button,
+                onPress = JoystickAction.FAST_CURSOR_PRESS,
+                onRelease = JoystickAction.FAST_CURSOR_RELEASE,
+              )
+            JoystickAction.TOGGLE_GESTURE ->
+              mapping(
+                button,
+                onPress = JoystickAction.TOGGLE_GESTURE,
+              )
+            else ->
+              mapping(button, onRelease = action)
+          }
+
+        if (action == JoystickAction.TOGGLE_GESTURE && binding.modifier == ShiftModifier.NONE) {
+          unshifted.add(buttonMapping)
+          leftShifted.add(buttonMapping)
+          rightShifted.add(buttonMapping)
+          dualShifted.add(buttonMapping)
+        } else {
+          when (binding.modifier) {
+            ShiftModifier.NONE -> unshifted.add(buttonMapping)
+            ShiftModifier.SHIFT -> leftShifted.add(buttonMapping)
+            ShiftModifier.ALT -> rightShifted.add(buttonMapping)
+            ShiftModifier.ALTSHIFT -> dualShifted.add(buttonMapping)
+          }
+        }
       }
     }
 
@@ -78,14 +92,7 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
       leftShiftButtons = leftShifted,
       rightShiftButtons = rightShifted,
       dualShiftButtons = dualShifted,
-      rawButtons =
-        setOf(
-          JoystickButtonProcessorImpl.RawButtonMapping(
-            basicButton(config.shiftButton),
-            onPress = JoystickAction.FAST_CURSOR_PRESS,
-            onRelease = JoystickAction.FAST_CURSOR_RELEASE,
-          ),
-        ),
+      rawButtons = emptySet(),
       leftShiftKey = config.shiftButton,
       rightShiftKey = config.altButton,
       onAction = onAction,
