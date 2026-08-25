@@ -369,6 +369,33 @@ internal class JoystickCursorStateImplTest {
     assertThat(runnableCaptor.firstValue).isEqualTo(runnableCaptor.lastValue)
   }
 
+  @Test
+  fun create_withMissingMotionRanges_doesNotThrowNpe() {
+    val incompleteDevice: InputDevice = mock()
+    whenever(incompleteDevice.getMotionRange(anyInt())).thenReturn(null)
+
+    val sut =
+      JoystickCursorStateImpl.create(
+        incompleteDevice,
+        DisplayInfo(
+          Display.DEFAULT_DISPLAY,
+          context,
+          windowWidth = WINDOW_WIDTH,
+          windowHeight = WINDOW_HEIGHT,
+        ),
+        handler,
+        xAxis = MotionEvent.AXIS_Z,
+        yAxis = MotionEvent.AXIS_RZ,
+        nanoClock = nanoClock,
+        JoystickButtonProcessorFactoryImpl,
+        onUpdatePosition = {},
+        onAction = { _, _ -> },
+      )
+
+    assertThat(sut).isNotNull()
+    assertThat(sut.isEnabled).isTrue()
+  }
+
   private fun create(
     displayInfo: DisplayInfo =
       DisplayInfo(

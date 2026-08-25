@@ -5,7 +5,7 @@ import android.view.MotionEvent
 import kotlin.math.absoluteValue
 
 /** Encapsulates a [MotionEvent] axis and associated [MotionRange]. */
-internal data class RangedAxis(val axis: Int, private val range: InputDevice.MotionRange) {
+internal data class RangedAxis(val axis: Int, private val range: InputDevice.MotionRange?) {
   /** The modified deflection of this axis, between -1 and 1. */
   var deflection = 0f
     private set
@@ -19,12 +19,15 @@ internal data class RangedAxis(val axis: Int, private val range: InputDevice.Mot
   fun update(event: MotionEvent): Boolean {
     val newDeflection = event.getAxisValue(axis)
 
-    if ((newDeflection - rawDeflection).absoluteValue <= range.fuzz) {
+    val fuzz = range?.fuzz ?: 0f
+    val flat = range?.flat ?: 0f
+
+    if ((newDeflection - rawDeflection).absoluteValue <= fuzz) {
       return false
     }
     rawDeflection = newDeflection
 
-    val newValue = if (rawDeflection.absoluteValue < range.flat) 0f else rawDeflection
+    val newValue = if (rawDeflection.absoluteValue < flat) 0f else rawDeflection
     if (newValue == deflection) {
       return false
     }

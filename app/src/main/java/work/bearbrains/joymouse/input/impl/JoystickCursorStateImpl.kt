@@ -201,16 +201,18 @@ private constructor(
         keycode: Int,
         opposingKeycode: Int? = null,
         latchUntilZero: Boolean = false,
-      ) =
-        ButtonAxis(
-          RangedAxis(axis, device.getMotionRange(axis)),
+      ): ButtonAxis? {
+        val range = device.getMotionRange(axis) ?: return null
+        return ButtonAxis(
+          RangedAxis(axis, range),
           keycode,
           opposingKeycode,
           latchUntilZero,
         )
+      }
 
       val buttonAxes =
-        listOf(
+        listOfNotNull(
           makeButtonAxis(
             MotionEvent.AXIS_LTRIGGER,
             KeyEvent.KEYCODE_BUTTON_L2,
