@@ -1,6 +1,5 @@
 package work.bearbrains.joymouse.ui
 
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -90,32 +89,13 @@ class CursorAccessibilityOverlay(val displayInfo: DisplayInfo) : Closeable {
         canvas.clipRect(dirtyRect)
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
-        val cursorBitmap = createCursorBitmap(vectorDrawable, tintColor)
-        canvas.drawBitmap(cursorBitmap, 0f, 0f, null)
-        cursorBitmap.recycle()
+        DrawableCompat.setTint(vectorDrawable, tintColor)
+        DrawableCompat.setTintMode(vectorDrawable, PorterDuff.Mode.MULTIPLY)
+        vectorDrawable.setBounds(0, 0, vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
+        vectorDrawable.draw(canvas)
 
         unlockCanvasAndPost(canvas)
       }
-    }
-
-    private fun createCursorBitmap(
-      vectorDrawable: VectorDrawable,
-      @ColorInt tintColor: Int
-    ): Bitmap {
-      val bitmap =
-        Bitmap.createBitmap(
-          vectorDrawable.intrinsicWidth,
-          vectorDrawable.intrinsicHeight,
-          Bitmap.Config.ARGB_8888
-        )
-
-      val canvas = Canvas(bitmap)
-      DrawableCompat.setTint(vectorDrawable, tintColor)
-      DrawableCompat.setTintMode(vectorDrawable, PorterDuff.Mode.MULTIPLY)
-      vectorDrawable.setBounds(0, 0, canvas.width, canvas.height)
-      vectorDrawable.draw(canvas)
-
-      return bitmap
     }
   }
 }
