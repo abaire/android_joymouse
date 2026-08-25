@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: |
@@ -81,14 +81,14 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Upload Release APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - name: Upload Debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
