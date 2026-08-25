@@ -123,6 +123,16 @@ class MouseAccessibilityService :
   }
 
   override fun onUnbind(intent: Intent?): Boolean {
+    cleanup()
+    return super.onUnbind(intent)
+  }
+
+  override fun onDestroy() {
+    cleanup()
+    super.onDestroy()
+  }
+
+  private fun cleanup() {
     (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(this)
 
     val inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
@@ -139,8 +149,6 @@ class MouseAccessibilityService :
 
     cancelPendingLongTouch()
     handler.removeCallbacksAndMessages(null)
-
-    return super.onUnbind(intent)
   }
 
   override fun onDisplayAdded(displayId: Int) {
