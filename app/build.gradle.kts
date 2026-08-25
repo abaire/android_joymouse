@@ -51,7 +51,6 @@ dependencies {
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
   implementation(libs.material)
-  implementation(libs.core.ktx)
 
   // Jetpack Compose
   implementation(platform(libs.androidx.compose.bom))
@@ -66,12 +65,12 @@ dependencies {
   testImplementation(libs.robolectric)
   testImplementation(libs.google.truth)
   testImplementation(libs.mockito)
-  testImplementation(project(":app"))
+  testImplementation(libs.core.ktx)
   testImplementation(project(":shared-test"))
 
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)
   androidTestImplementation(libs.google.truth)
-  androidTestImplementation(project(":app"))
+  androidTestImplementation(libs.core.ktx)
   androidTestImplementation(project(":shared-test"))
 }
