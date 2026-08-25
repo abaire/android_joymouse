@@ -30,13 +30,14 @@ class SwipeVisualization(
   private val height: Int
 
   init {
+    val density = displayInfo.context.resources.displayMetrics.density
     val paths = gestureDescription.collectPathsMutable()
     if (paths.isNotEmpty()) {
-      addArrowhead(paths)
+      addArrowhead(paths, density)
     }
 
-    val outlineStroke = OUTLINE_STROKE_DP
-    val insideStroke = INSIDE_STROKE_DP
+    val outlineStroke = OUTLINE_STROKE_DP * density
+    val insideStroke = INSIDE_STROKE_DP * density
 
     val totalBounds = measurePaths(paths, outlineStroke)
 
@@ -64,6 +65,7 @@ class SwipeVisualization(
         height,
         outlineStroke,
         insideStroke,
+        originRadius = ORIGIN_RADIUS_DP * density,
       )
 
     SurfaceControl.Transaction()
@@ -82,6 +84,11 @@ class SwipeVisualization(
   private companion object {
     const val OUTLINE_STROKE_DP = 20f
     const val INSIDE_STROKE_DP = OUTLINE_STROKE_DP * 0.75f
+    const val ORIGIN_RADIUS_DP = 4f
+    const val ARROWHEAD_LENGTH_DP = 10f
+    const val ARROWHEAD_HALF_WIDTH_DP = 5f
+    const val ARROWHEAD_OFFSET_DP = 10f
+    const val ARROWHEAD_SHORTEN_LENGTH_DP = 15f
 
     fun measurePaths(paths: List<Path>, outlineStroke: Float): RectF {
       val pathBounds = RectF()
@@ -126,6 +133,7 @@ class SwipeVisualization(
       height: Int,
       outlineStroke: Float,
       insideStroke: Float,
+      originRadius: Float,
     ): Surface {
       val outlinePaint =
         Paint().apply {
@@ -155,14 +163,14 @@ class SwipeVisualization(
           canvas.drawPath(path, insidePaint)
         }
 
-        canvas.drawCircle(originX, originY, 4f, outlinePaint)
-        canvas.drawCircle(originX, originY, 4f, insidePaint)
+        canvas.drawCircle(originX, originY, originRadius, outlinePaint)
+        canvas.drawCircle(originX, originY, originRadius, insidePaint)
 
         unlockCanvasAndPost(canvas)
       }
     }
 
-    fun addArrowhead(paths: MutableList<Path>) {
+    fun addArrowhead(paths: MutableList<Path>, density: Float) {
       val lastPath = paths.last()
 
       val pathMeasure = PathMeasure(lastPath, false)
@@ -175,21 +183,25 @@ class SwipeVisualization(
       val endY = pos[1]
       val angle = Math.toDegrees(atan2(tan[1].toDouble(), tan[0].toDouble())).toFloat()
 
+      val arrowLength = ARROWHEAD_LENGTH_DP * density
+      val arrowHalfWidth = ARROWHEAD_HALF_WIDTH_DP * density
+      val arrowOffset = ARROWHEAD_OFFSET_DP * density
+      val shortenLength = ARROWHEAD_SHORTEN_LENGTH_DP * density
+
       val arrowHeadPath = Path()
       arrowHeadPath.moveTo(endX, endY)
-      arrowHeadPath.lineTo(endX - 10, endY - 5)
-      arrowHeadPath.lineTo(endX - 10, endY + 5)
+      arrowHeadPath.lineTo(endX - arrowLength, endY - arrowHalfWidth)
+      arrowHeadPath.lineTo(endX - arrowLength, endY + arrowHalfWidth)
       arrowHeadPath.close()
 
       val matrix = Matrix()
-      matrix.postTranslate(-10f, 0f)
+      matrix.postTranslate(-arrowOffset, 0f)
       matrix.postRotate(angle, endX, endY)
       arrowHeadPath.transform(matrix)
 
       paths.add(arrowHeadPath)
 
       lastPath.rewind()
-      val shortenLength = 15f
       pathMeasure.getSegment(0f, lastPathLength - shortenLength, lastPath, true)
     }
   }
