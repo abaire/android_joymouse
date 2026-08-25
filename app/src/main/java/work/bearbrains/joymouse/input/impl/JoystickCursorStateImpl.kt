@@ -1,9 +1,11 @@
-package work.bearbrains.joymouse
+package work.bearbrains.joymouse.input.impl
 
 import android.os.Handler
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import work.bearbrains.joymouse.DisplayInfo
+import work.bearbrains.joymouse.NanoClock
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickButtonProcessor
 import work.bearbrains.joymouse.input.JoystickCursorState
@@ -61,6 +63,7 @@ private constructor(
 
       /** Queues this repeater for future processing. */
       fun restart() {
+        cancel()
         handler.postDelayed(this, REPEAT_DELAY_MILLISECONDS)
       }
 

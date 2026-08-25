@@ -1,5 +1,3 @@
-import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
-
 plugins {
   alias(libs.plugins.android.library)
   alias(libs.plugins.ncorti.ktfmt)
@@ -31,7 +29,6 @@ dependencies {
 
 ktfmt { googleStyle() }
 
-tasks.register<KtfmtFormatTask>("ktfmtPrecommit") {
-  source = project.fileTree(projectDir)
-  include("**/*.kt")
+tasks.register("ktfmtPrecommit") {
+  dependsOn("ktfmtFormat")
 }

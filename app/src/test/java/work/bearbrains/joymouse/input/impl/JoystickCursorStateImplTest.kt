@@ -15,9 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.whenever
 import org.robolectric.annotation.Config
-import work.bearbrains.joymouse.ButtonAxis
 import work.bearbrains.joymouse.DisplayInfo
-import work.bearbrains.joymouse.JoystickCursorStateImpl
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.test.FakeClock
@@ -318,8 +316,30 @@ internal class JoystickCursorStateImplTest {
     sut.update(motionEvent)
 
     verify(handler).postDelayed(runnableCaptor.capture(), anyLong())
-    verify(handler).removeCallbacks(runnableCaptor.capture())
-    assertThat(runnableCaptor.firstValue).isEqualTo(runnableCaptor.lastValue)
+    verify(handler, times(2)).removeCallbacks(runnableCaptor.capture())
+    assertThat(runnableCaptor.allValues.distinct()).hasSize(1)
+  }
+
+  @Test
+  fun rightStickDeflection_cancelsPriorPendingRepeatRunnable_beforeSchedulingNewOne() {
+    val runnableCaptor = argumentCaptor<Runnable>()
+    whenever(handler.postDelayed(any(), anyLong())).thenReturn(true)
+    val sut = create()
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    sut.update(motionEvent)
+
+    val inOrder = inOrder(handler)
+    inOrder.verify(handler).removeCallbacks(runnableCaptor.capture())
+    inOrder.verify(handler).postDelayed(runnableCaptor.capture(), anyLong())
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.8f)
+    sut.update(motionEvent)
+
+    inOrder.verify(handler).removeCallbacks(runnableCaptor.capture())
+    inOrder.verify(handler).postDelayed(runnableCaptor.capture(), anyLong())
+
+    assertThat(runnableCaptor.allValues.distinct()).hasSize(1)
   }
 
   @Test
@@ -365,8 +385,8 @@ internal class JoystickCursorStateImplTest {
     sut.cancelRepeater()
 
     verify(handler).postDelayed(runnableCaptor.capture(), anyLong())
-    verify(handler).removeCallbacks(runnableCaptor.capture())
-    assertThat(runnableCaptor.firstValue).isEqualTo(runnableCaptor.lastValue)
+    verify(handler, times(2)).removeCallbacks(runnableCaptor.capture())
+    assertThat(runnableCaptor.allValues.distinct()).hasSize(1)
   }
 
   @Test

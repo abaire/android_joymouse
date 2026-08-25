@@ -37,6 +37,7 @@ import work.bearbrains.joymouse.input.JoystickCursorState
 import work.bearbrains.joymouse.input.impl.GestureBuilderImpl
 import work.bearbrains.joymouse.input.impl.GestureDescriptionBuilderProvider
 import work.bearbrains.joymouse.input.impl.JoystickButtonProcessorFactoryImpl
+import work.bearbrains.joymouse.input.impl.JoystickCursorStateImpl
 import work.bearbrains.joymouse.ui.CursorAccessibilityOverlay
 import work.bearbrains.joymouse.ui.SwipeVisualization
 import work.bearbrains.joymouse.ui.lastPoint
@@ -123,6 +124,12 @@ class MouseAccessibilityService :
     joystickDeviceIdsToState.clear()
 
     displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
+    displayIdToCursorDisplayState.clear()
+
+    closeableOverlays.forEach { it.close() }
+    closeableOverlays.clear()
+
+    handler.removeCallbacksAndMessages(null)
 
     return super.onUnbind(intent)
   }
@@ -606,7 +613,7 @@ class MouseAccessibilityService :
         Log.d(TAG, "  Display ${key}: ${it}")
 
         if (displayToWindows[key].isEmpty()) {
-          Log.i(TAG, "Ignoring display ${key} with no accessibility window info ($it})")
+          Log.i(TAG, "Ignoring display ${key} with no accessibility window info (${it})")
           return@let
         }
 

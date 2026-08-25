@@ -18,12 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import work.bearbrains.joymouse.R
 
 @Composable
-fun MainScreen(
-  overlayEnabled: Boolean,
-  modifier: Modifier = Modifier,
-  onLaunchAccessibilitySettings: () -> Unit,
-  onEnableOverlay: () -> Unit
-) {
+fun MainScreen(modifier: Modifier = Modifier, onLaunchAccessibilitySettings: () -> Unit) {
   Column(
     modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
     verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
@@ -42,7 +37,7 @@ fun MainScreen(
     }
 
     LazyColumn(
-      modifier = modifier.padding(LayoutTokens.COLUMN_PADDING),
+      modifier = Modifier.fillMaxWidth(),
       verticalArrangement = Arrangement.spacedBy(LayoutTokens.COLUMN_ROW_SPACING),
     ) {
       item {
