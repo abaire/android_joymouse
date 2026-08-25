@@ -33,6 +33,8 @@ import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import work.bearbrains.joymouse.impl.NanoClockImpl
+import work.bearbrains.joymouse.input.ActionConfig
+import work.bearbrains.joymouse.input.ActionConfigRepository
 import work.bearbrains.joymouse.input.GestureBuilder
 import work.bearbrains.joymouse.input.GestureUtil
 import work.bearbrains.joymouse.input.JoystickAction
@@ -110,8 +112,16 @@ class MouseAccessibilityService :
       serviceInfo = info
     }
 
+  private lateinit var actionConfigRepository: ActionConfigRepository
+  private var actionConfigCloseable: AutoCloseable? = null
+
   public override fun onServiceConnected() {
     instance = this
+
+    actionConfigRepository = ActionConfigRepository(this)
+    actionConfigCloseable = actionConfigRepository.registerListener { newConfig ->
+      joystickDeviceIdsToState.values.forEach { it.updateActionConfig(newConfig) }
+    }
 
     val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     displayManager.registerDisplayListener(this, handler)
@@ -156,6 +166,9 @@ class MouseAccessibilityService :
 
     displayIdToCursorDisplayState.forEach { (_, state) -> state.close() }
     displayIdToCursorDisplayState.clear()
+
+    actionConfigCloseable?.close()
+    actionConfigCloseable = null
 
     closeableOverlays.forEach { it.close() }
     closeableOverlays.clear()
@@ -860,6 +873,13 @@ class MouseAccessibilityService :
         ?: DisplayInfo(Display.DEFAULT_DISPLAY, getDefaultDisplayContext(), 1920f, 1080f)
     }
 
+    val config =
+      if (::actionConfigRepository.isInitialized) {
+        actionConfigRepository.getConfig()
+      } else {
+        ActionConfig.DEFAULT
+      }
+
     val newDevice =
       JoystickCursorStateImpl.create(
         device = device,
@@ -871,6 +891,7 @@ class MouseAccessibilityService :
         JoystickButtonProcessorFactoryImpl,
         onUpdatePosition = ::updateCursorPosition,
         onAction = ::onAction,
+        config = config,
       )
     joystickDeviceIdsToState[device.id] = newDevice
 

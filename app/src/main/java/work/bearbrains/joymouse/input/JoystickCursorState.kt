@@ -43,4 +43,7 @@ interface JoystickCursorState : Closeable {
    * Adjusts the cursor coordinates to maintain its relative position on the new display bounds.
    */
   fun updateDisplayInfo(newDisplayInfo: DisplayInfo)
+
+  /** Updates the [ActionConfig] and rebuilds the active button processor mapping. */
+  fun updateActionConfig(config: ActionConfig)
 }

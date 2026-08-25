@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import work.bearbrains.joymouse.DisplayInfo
 import work.bearbrains.joymouse.NanoClock
+import work.bearbrains.joymouse.input.ActionConfig
 import work.bearbrains.joymouse.input.JoystickAction
 import work.bearbrains.joymouse.input.JoystickButtonProcessor
 import work.bearbrains.joymouse.input.JoystickCursorState
@@ -20,13 +21,16 @@ private constructor(
   private val yAxis: RangedAxis,
   private val buttonAxes: List<ButtonAxis>,
   private val nanoClock: NanoClock,
-  buttonProcessorFactory: JoystickButtonProcessor.Factory,
+  private val buttonProcessorFactory: JoystickButtonProcessor.Factory,
   private val onUpdatePosition: (JoystickCursorState) -> Unit,
-  onAction: (JoystickCursorState, JoystickAction) -> Unit,
+  private val onAction: (JoystickCursorState, JoystickAction) -> Unit,
+  initialConfig: ActionConfig = ActionConfig.DEFAULT,
 ) : JoystickCursorState {
 
-  private val buttonProcessor =
-    buttonProcessorFactory.create() { _, action ->
+  private var buttonProcessor: JoystickButtonProcessor = createButtonProcessor(initialConfig)
+
+  private fun createButtonProcessor(config: ActionConfig): JoystickButtonProcessor {
+    return buttonProcessorFactory.create(config) { _, action ->
       when (action) {
         JoystickAction.TOGGLE_ENABLED -> {
           isEnabled = !isEnabled
@@ -44,13 +48,19 @@ private constructor(
           isFastCursorEnabled = false
         }
         else -> {
-          // Just through to the onAction handler.
+          // Just pass through to the onAction handler.
         }
       }
       if (isEnabled || action == JoystickAction.TOGGLE_ENABLED) {
         onAction(this, action)
       }
     }
+  }
+
+  override fun updateActionConfig(config: ActionConfig) {
+    buttonProcessor.reset()
+    buttonProcessor = createButtonProcessor(config)
+  }
 
   private val eventRepeater =
     object : Runnable {
@@ -221,6 +231,7 @@ private constructor(
       buttonProcessorFactory: JoystickButtonProcessor.Factory,
       onUpdatePosition: (JoystickCursorState) -> Unit,
       onAction: (JoystickCursorState, JoystickAction) -> Unit,
+      config: ActionConfig = ActionConfig.DEFAULT,
     ): JoystickCursorState {
       fun makeButtonAxis(
         axis: Int,
@@ -272,6 +283,7 @@ private constructor(
         buttonProcessorFactory,
         onUpdatePosition,
         onAction,
+        initialConfig = config,
       )
     }
 

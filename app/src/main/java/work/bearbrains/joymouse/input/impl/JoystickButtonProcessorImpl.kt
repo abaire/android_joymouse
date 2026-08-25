@@ -17,6 +17,8 @@ class JoystickButtonProcessorImpl(
   private val rightShiftButtons: Set<ButtonMapping> = emptySet(),
   private val dualShiftButtons: Set<ButtonMapping> = emptySet(),
   private val rawButtons: Set<RawButtonMapping> = emptySet(),
+  private val leftShiftKey: Int = LEFT_SHIFT,
+  private val rightShiftKey: Int = RIGHT_SHIFT,
   private val onAction: (JoystickButtonProcessor, JoystickAction) -> Unit,
 ) : JoystickButtonProcessor {
   private interface ButtonHolder {
@@ -154,15 +156,15 @@ class JoystickButtonProcessorImpl(
   }
 
   private fun handleButtonPressEvent(buttonId: Int) {
-    if (buttonId == LEFT_SHIFT) {
+    if (buttonId == leftShiftKey) {
       leftShiftUsed = false
     }
-    if (buttonId == RIGHT_SHIFT) {
+    if (buttonId == rightShiftKey) {
       rightShiftUsed = false
     }
 
-    val leftShift = (buttonId != LEFT_SHIFT) && buttonStates.getOrDefault(LEFT_SHIFT, false)
-    val rightShift = (buttonId != RIGHT_SHIFT) && buttonStates.getOrDefault(RIGHT_SHIFT, false)
+    val leftShift = (buttonId != leftShiftKey) && buttonStates.getOrDefault(leftShiftKey, false)
+    val rightShift = (buttonId != rightShiftKey) && buttonStates.getOrDefault(rightShiftKey, false)
 
     if (leftShift) {
       leftShiftUsed = true
@@ -182,7 +184,7 @@ class JoystickButtonProcessorImpl(
         unshiftedButtons
       }
 
-    val isShiftKey = (buttonId == LEFT_SHIFT || buttonId == RIGHT_SHIFT)
+    val isShiftKey = (buttonId == leftShiftKey || buttonId == rightShiftKey)
 
     for (mapping in buttonList) {
       val (button, actionEvent) = mapping
@@ -218,7 +220,7 @@ class JoystickButtonProcessorImpl(
   }
 
   private fun handleButtonReleaseEvent(buttonId: Int) {
-    if (buttonId == RIGHT_SHIFT) {
+    if (buttonId == rightShiftKey) {
       val mapping = buttonLatches.remove(buttonId)
       if (mapping != null) {
         mapping.button.update(buttonStates)
@@ -230,7 +232,7 @@ class JoystickButtonProcessorImpl(
       return
     }
 
-    if (buttonId == LEFT_SHIFT) {
+    if (buttonId == leftShiftKey) {
       val mapping = buttonLatches.remove(buttonId)
       if (mapping != null) {
         mapping.button.update(buttonStates)
