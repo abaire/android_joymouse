@@ -57,6 +57,10 @@ object JoystickButtonProcessorFactoryImpl : JoystickButtonProcessor.Factory {
           chordButton(KeyEvent.KEYCODE_BUTTON_R1),
           onRelease = JoystickAction.CYCLE_DISPLAY_FORWARD
         ),
+        mapping(
+          chordButton(KeyEvent.KEYCODE_BUTTON_SELECT),
+          onRelease = JoystickAction.SELECT_PRIMARY_DEVICE
+        ),
       )
 
     val rightShifted =

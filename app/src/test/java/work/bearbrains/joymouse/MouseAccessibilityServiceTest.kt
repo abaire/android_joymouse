@@ -137,4 +137,179 @@ class MouseAccessibilityServiceTest {
     assertThat(ShadowToast.getTextOfLatestToast())
       .isEqualTo(service.getString(R.string.toast_single_display))
   }
+
+  @Test
+  fun testPrimaryDeviceSelection_firstDeviceBecomesPrimary_otherDevicesIgnored() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    service.addJoystickDevice(device1)
+
+    val device2 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device2.id).thenReturn(2)
+    service.addJoystickDevice(device2)
+
+    assertThat(service.primaryDeviceId).isNull()
+
+    // Send key event from device 1
+    val consumed1 =
+      service.onKeyEvent(
+        KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0)
+      )
+    assertThat(consumed1).isTrue()
+    assertThat(service.primaryDeviceId).isEqualTo(1)
+
+    // Key event from device 2 should not be consumed by JoyMouse service
+    val consumed2 =
+      service.onKeyEvent(
+        KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 2, 0)
+      )
+    assertThat(consumed2).isFalse()
+  }
+
+  @Test
+  fun testSelectPrimaryDevice_withSingleDevice_showsToast() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    service.addJoystickDevice(device1)
+
+    // L2 Down (Left Trigger) + SELECT Down + SELECT Up
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_L2, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_SELECT, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_SELECT, 0, 0, 1, 0))
+
+    val toastText = ShadowToast.getTextOfLatestToast()
+    assertThat(toastText).isEqualTo(service.getString(R.string.toast_single_device))
+    assertThat(service.primaryDeviceId).isEqualTo(1)
+  }
+
+  @Test
+  fun testSelectPrimaryDevice_withMultipleDevices_launchesSelectionActivity() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    org.mockito.kotlin.whenever(device1.name).thenReturn("Controller 1")
+    service.addJoystickDevice(device1)
+
+    val device2 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device2.id).thenReturn(2)
+    org.mockito.kotlin.whenever(device2.name).thenReturn("Controller 2")
+    service.addJoystickDevice(device2)
+
+    // Initially device 1 interacts and becomes primary
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0))
+    assertThat(service.primaryDeviceId).isEqualTo(1)
+
+    // L2 Down + SELECT Down + SELECT Up from device 1 to open controller picker
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_L2, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_SELECT, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_SELECT, 0, 0, 1, 0))
+
+    val shadowService = shadowOf(service)
+    val nextIntent = shadowService.nextStartedActivity
+    assertThat(nextIntent).isNotNull()
+    assertThat(nextIntent.component?.className)
+      .isEqualTo(work.bearbrains.joymouse.ui.ControllerSelectionActivity::class.java.name)
+  }
+
+  @Test
+  fun testGetConnectedControllers_returnsAllDevicesWithPrimaryStatus() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    org.mockito.kotlin.whenever(device1.name).thenReturn("Controller 1")
+    service.addJoystickDevice(device1)
+
+    val device2 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device2.id).thenReturn(2)
+    org.mockito.kotlin.whenever(device2.name).thenReturn("Controller 2")
+    service.addJoystickDevice(device2)
+
+    service.primaryDeviceId = 1
+
+    val controllers = service.getConnectedControllers()
+    assertThat(controllers).hasSize(2)
+    assertThat(controllers[0].id).isEqualTo(1)
+    assertThat(controllers[0].isPrimary).isTrue()
+    assertThat(controllers[1].id).isEqualTo(2)
+    assertThat(controllers[1].isPrimary).isFalse()
+  }
+
+  @Test
+  fun testSetPrimaryDevice_switchesPrimaryAndShowsToast() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    service.addJoystickDevice(device1)
+
+    val device2 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device2.id).thenReturn(2)
+    service.addJoystickDevice(device2)
+
+    service.primaryDeviceId = 1
+
+    service.setPrimaryDevice(2)
+    assertThat(service.primaryDeviceId).isEqualTo(2)
+
+    val toastText = ShadowToast.getTextOfLatestToast()
+    assertThat(toastText).isEqualTo(service.getString(R.string.toast_active_device, service.getString(R.string.controller_fallback_name, 2)))
+
+    // Now device 2 events are consumed, device 1 events are ignored
+    val consumed2 =
+      service.onKeyEvent(
+        KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 2, 0)
+      )
+    assertThat(consumed2).isTrue()
+
+    val consumed1 =
+      service.onKeyEvent(
+        KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0)
+      )
+    assertThat(consumed1).isFalse()
+  }
+
+  @Test
+  fun testPrimaryDevice_failoverOnDisconnect() {
+    val serviceController = Robolectric.buildService(MouseAccessibilityService::class.java)
+    val service = serviceController.create().get()
+    service.onServiceConnected()
+
+    val device1 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device1.id).thenReturn(1)
+    service.addJoystickDevice(device1)
+
+    val device2 = mock<InputDevice>()
+    org.mockito.kotlin.whenever(device2.id).thenReturn(2)
+    service.addJoystickDevice(device2)
+
+    // Device 1 becomes primary
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0))
+    service.onKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A, 0, 0, 1, 0))
+    assertThat(service.primaryDeviceId).isEqualTo(1)
+
+    // Disconnect device 1 -> failover to device 2
+    service.onInputDeviceRemoved(1)
+    assertThat(service.primaryDeviceId).isEqualTo(2)
+
+    // Disconnect device 2 -> primary becomes null
+    service.onInputDeviceRemoved(2)
+    assertThat(service.primaryDeviceId).isNull()
+  }
 }

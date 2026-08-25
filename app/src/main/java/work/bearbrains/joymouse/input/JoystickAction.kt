@@ -47,4 +47,7 @@ enum class JoystickAction {
 
   /** The "fast cursor button" has been fully released. */
   FAST_CURSOR_RELEASE,
+
+  /** Requests that a controller picker screen be shown to choose the primary controller. */
+  SELECT_PRIMARY_DEVICE,
 }
