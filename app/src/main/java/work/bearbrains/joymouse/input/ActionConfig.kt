@@ -197,7 +197,7 @@ data class ActionBinding(
   }
 }
 
-/** Configuration mapping special [JoystickAction]s, shift/alt modifier buttons, mouse stick, cursor appearance, and toggle chord. */
+/** Configuration mapping special [JoystickAction]s. */
 data class ActionConfig(
   val actionBindings: Map<JoystickAction, ActionBinding> = DEFAULT_ACTION_BINDINGS,
   val toggleChord: Set<Int> = DEFAULT_TOGGLE_CHORD,
@@ -207,6 +207,8 @@ data class ActionConfig(
   val invertX: Boolean = false,
   val invertY: Boolean = false,
   val cursorConfig: CursorConfig = CursorConfig.DEFAULT,
+  val cursorSpeed: Float = DEFAULT_CURSOR_SPEED,
+  val fastCursorSpeed: Float = DEFAULT_FAST_CURSOR_SPEED,
 ) {
 
   init {
@@ -233,6 +235,8 @@ data class ActionConfig(
     json.put("invertX", invertX)
     json.put("invertY", invertY)
     json.put("cursorConfig", cursorConfig.toJson())
+    json.put("cursorSpeed", cursorSpeed.toDouble())
+    json.put("fastCursorSpeed", fastCursorSpeed.toDouble())
 
     return json.toString()
   }
@@ -241,6 +245,8 @@ data class ActionConfig(
     const val DEFAULT_SHIFT_BUTTON = KeyEvent.KEYCODE_BUTTON_L2
     const val DEFAULT_ALT_BUTTON = KeyEvent.KEYCODE_BUTTON_R2
     val DEFAULT_MOUSE_STICK = MouseStick.RIGHT_STICK
+    const val DEFAULT_CURSOR_SPEED = 1.0f
+    const val DEFAULT_FAST_CURSOR_SPEED = 2.0f
 
     /** Special actions that can be remapped to buttons. */
     val REMAPPABLE_ACTIONS: List<JoystickAction> =
@@ -378,6 +384,11 @@ data class ActionConfig(
         val cursorConfig =
           json.optJSONObject("cursorConfig")?.let { CursorConfig.fromJson(it) } ?: CursorConfig.DEFAULT
 
+        val cursorSpeed =
+          json.optDouble("cursorSpeed", DEFAULT_CURSOR_SPEED.toDouble()).toFloat()
+        val fastCursorSpeed =
+          json.optDouble("fastCursorSpeed", DEFAULT_FAST_CURSOR_SPEED.toDouble()).toFloat()
+
         ActionConfig(
           actionBindings = bindingsMap,
           toggleChord = toggleChord,
@@ -387,6 +398,8 @@ data class ActionConfig(
           invertX = invertX,
           invertY = invertY,
           cursorConfig = cursorConfig,
+          cursorSpeed = cursorSpeed,
+          fastCursorSpeed = fastCursorSpeed,
         )
       } catch (_: Exception) {
         DEFAULT

@@ -31,6 +31,8 @@ private constructor(
   private var buttonProcessor: JoystickButtonProcessor = createButtonProcessor(initialConfig)
   private var invertX: Boolean = initialConfig.invertX
   private var invertY: Boolean = initialConfig.invertY
+  private var cursorSpeed: Float = initialConfig.cursorSpeed
+  private var fastCursorSpeed: Float = initialConfig.fastCursorSpeed
 
   private fun createButtonProcessor(config: ActionConfig): JoystickButtonProcessor {
     return buttonProcessorFactory.create(config) { _, action ->
@@ -65,6 +67,8 @@ private constructor(
     buttonProcessor = createButtonProcessor(config)
     invertX = config.invertX
     invertY = config.invertY
+    cursorSpeed = config.cursorSpeed
+    fastCursorSpeed = config.fastCursorSpeed
 
     val dev = device ?: InputDevice.getDevice(deviceId)
     val rangeX = dev?.getMotionRange(config.mouseStick.xAxis)
@@ -181,9 +185,9 @@ private constructor(
 
     val velocity =
       if (isFastCursorEnabled) {
-        defaultVelocityPixelsPerNanosecond * FAST_CURSOR_MODIFIER
+        defaultVelocityPixelsPerNanosecond * fastCursorSpeed
       } else {
-        defaultVelocityPixelsPerNanosecond
+        defaultVelocityPixelsPerNanosecond * cursorSpeed
       }
 
     val xMultiplier = if (invertX) -1f else 1f

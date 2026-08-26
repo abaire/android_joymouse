@@ -82,6 +82,8 @@ class ActionConfigTest {
     assertThat(config.mouseStick).isEqualTo(MouseStick.RIGHT_STICK)
     assertThat(config.invertX).isFalse()
     assertThat(config.invertY).isFalse()
+    assertThat(config.cursorSpeed).isEqualTo(1.0f)
+    assertThat(config.fastCursorSpeed).isEqualTo(2.0f)
   }
 
   @Test
@@ -128,6 +130,8 @@ class ActionConfigTest {
         mouseStick = MouseStick.LEFT_STICK,
         invertX = true,
         invertY = true,
+        cursorSpeed = 1.5f,
+        fastCursorSpeed = 3.5f,
       )
 
     val jsonString = config.toJson()
@@ -148,6 +152,8 @@ class ActionConfigTest {
     assertThat(restored.mouseStick).isEqualTo(MouseStick.LEFT_STICK)
     assertThat(restored.invertX).isTrue()
     assertThat(restored.invertY).isTrue()
+    assertThat(restored.cursorSpeed).isEqualTo(1.5f)
+    assertThat(restored.fastCursorSpeed).isEqualTo(3.5f)
 
     // Verify missing actions in JSON fallback to defaults
     assertThat(restored.actionBindings[JoystickAction.CYCLE_DISPLAY_FORWARD]?.keyCodes)

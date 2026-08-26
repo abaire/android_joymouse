@@ -647,6 +647,46 @@ internal class JoystickCursorStateImplTest {
     assertThat(sut.pointerY).isLessThan(initialY)
   }
 
+  @Test
+  fun updateActionConfig_withCustomCursorSpeed_scalesMovementVelocity() {
+    val sut = create()
+    val initialX = sut.pointerX
+
+    // 2.0x normal speed
+    sut.updateActionConfig(work.bearbrains.joymouse.input.ActionConfig(cursorSpeed = 2.0f))
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    // 100ms with 1.0 deflection at 2.0x velocity (0.5 px/ms * 2.0 = 1.0 px/ms -> +100px)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    assertThat(sut.pointerX).isEqualTo(initialX + 100f)
+  }
+
+  @Test
+  fun update_withFastCursor_andCustomFastCursorSpeed_scalesMovementVelocity() {
+    val sut = create()
+    val initialX = sut.pointerX
+
+    // 4.0x fast cursor speed
+    sut.updateActionConfig(work.bearbrains.joymouse.input.ActionConfig(fastCursorSpeed = 4.0f))
+
+    // Enable fast cursor via LTRIGGER
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_LTRIGGER)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    // 100ms with 1.0 deflection at 4.0x velocity (0.5 px/ms * 4.0 = 2.0 px/ms -> +200px)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
+    sut.update(motionEvent)
+
+    assertThat(sut.pointerX).isEqualTo(initialX + 200f)
+  }
+
 
   private fun create(
     displayInfo: DisplayInfo =
