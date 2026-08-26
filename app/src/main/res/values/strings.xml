@@ -29,6 +29,41 @@
     <string name="operating_instructions_action_toggle_gesture">• `A`: toggle between drag and fling gestures</string>
     <string name="operating_instructions_action_item_template">• %1$s: %2$s</string>
 
+    <string name="table_header_action">Action</string>
+    <string name="table_header_buttons">Button(s)</string>
+    <string name="action_name_move_cursor">Move cursor</string>
+    <string name="action_name_activate_at_cursor">Activate at cursor</string>
+    <string name="action_name_move_cursor_faster">Move cursor faster</string>
+    <string name="action_name_toggle_drag_fling">Toggle drag/fling</string>
+    <string name="action_name_back">Back</string>
+    <string name="action_name_home">Home</string>
+    <string name="action_name_recent">Recent</string>
+    <string name="action_name_fling_up">Fling up</string>
+    <string name="action_name_fling_down">Fling down</string>
+    <string name="action_name_fling_left">Fling left</string>
+    <string name="action_name_fling_right">Fling right</string>
+    <string name="action_name_move_to_next_display">Move to next display</string>
+    <string name="action_name_move_to_previous_display">Move to previous display</string>
+    <string name="action_name_select_active_controller">Select active controller</string>
+    <string name="action_name_toggle_joymouse">Toggle JoyMouse</string>
+
+    <string name="action_desc_move_cursor">Moves the mouse cursor across the screen using the thumbstick. Deflecting the stick further increases cursor speed.</string>
+    <string name="action_desc_activate_at_cursor">Interacts at the current cursor position. A quick press taps, holding performs a long press, and moving the joystick while held performs a drag.</string>
+    <string name="action_desc_move_cursor_faster">Hold this button while moving the thumbstick to accelerate cursor movement across the screen.</string>
+    <string name="action_desc_toggle_drag_fling">While dragging, press this button to convert the drag into a fling gesture that releases touch with momentum.</string>
+    <string name="action_desc_back">Performs Android\'s global Back action, returning to the previous screen or dismissing open menus and dialogs.</string>
+    <string name="action_desc_home">Performs Android\'s global Home action, returning to your device\'s home launcher.</string>
+    <string name="action_desc_recent">Performs Android\'s global Recent Apps (Overview / App Switcher) action to view and switch between open applications.</string>
+    <string name="action_desc_fling_up">Executes a swipe up / fling up gesture starting from the cursor\'s current position.</string>
+    <string name="action_desc_fling_down">Executes a swipe down / fling down gesture starting from the cursor\'s current position.</string>
+    <string name="action_desc_fling_left">Executes a swipe left / fling left gesture starting from the cursor\'s current position.</string>
+    <string name="action_desc_fling_right">Executes a swipe right / fling right gesture starting from the cursor\'s current position.</string>
+    <string name="action_desc_move_to_next_display">Moves the mouse cursor to the next connected display in multi-display environments.</string>
+    <string name="action_desc_move_to_previous_display">Moves the mouse cursor to the previous display in multi-display environments.</string>
+    <string name="action_desc_select_active_controller">Opens a controller picker to choose which connected gamepad controls the mouse cursor.</string>
+    <string name="action_desc_toggle_joymouse">Toggles JoyMouse on or off. While JoyMouse is enabled, joystick inputs control the mouse cursor instead of passing through to other apps.</string>
+    <string name="action_dialog_trigger_label">Assigned button(s):</string>
+
     <string name="button_open_accessibility_settings">Open accessibility settings</string>
     <string name="button_manage_accessibility_settings">Accessibility settings</string>
     <string name="button_configure_actions">Configure &amp; customize</string>
