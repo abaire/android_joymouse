@@ -3,6 +3,7 @@ package work.bearbrains.joymouse.input
 import android.graphics.Color
 import android.view.KeyEvent
 import android.view.MotionEvent
+import kotlin.math.roundToInt
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -209,6 +210,7 @@ data class ActionConfig(
   val cursorConfig: CursorConfig = CursorConfig.DEFAULT,
   val cursorSpeed: Float = DEFAULT_CURSOR_SPEED,
   val fastCursorSpeed: Float = DEFAULT_FAST_CURSOR_SPEED,
+  val deadzone: Float = DEFAULT_DEADZONE,
 ) {
 
   init {
@@ -237,6 +239,7 @@ data class ActionConfig(
     json.put("cursorConfig", cursorConfig.toJson())
     json.put("cursorSpeed", cursorSpeed.toDouble())
     json.put("fastCursorSpeed", fastCursorSpeed.toDouble())
+    json.put("deadzone", deadzone.toDouble())
 
     return json.toString()
   }
@@ -247,6 +250,7 @@ data class ActionConfig(
     val DEFAULT_MOUSE_STICK = MouseStick.RIGHT_STICK
     const val DEFAULT_CURSOR_SPEED = 1.0f
     const val DEFAULT_FAST_CURSOR_SPEED = 2.0f
+    const val DEFAULT_DEADZONE = 0.10f
 
     /** Special actions that can be remapped to buttons. */
     val REMAPPABLE_ACTIONS: List<JoystickAction> =
@@ -388,6 +392,8 @@ data class ActionConfig(
           json.optDouble("cursorSpeed", DEFAULT_CURSOR_SPEED.toDouble()).toFloat()
         val fastCursorSpeed =
           json.optDouble("fastCursorSpeed", DEFAULT_FAST_CURSOR_SPEED.toDouble()).toFloat()
+        val deadzone =
+          json.optDouble("deadzone", DEFAULT_DEADZONE.toDouble()).toFloat()
 
         ActionConfig(
           actionBindings = bindingsMap,
@@ -400,6 +406,7 @@ data class ActionConfig(
           cursorConfig = cursorConfig,
           cursorSpeed = cursorSpeed,
           fastCursorSpeed = fastCursorSpeed,
+          deadzone = deadzone,
         )
       } catch (_: Exception) {
         DEFAULT
@@ -463,6 +470,8 @@ data class ActionConfig(
         stickName
       }
     }
+
+    fun formatDeadzone(deadzone: Float): String = "${(deadzone * 100).roundToInt()}%"
 
     fun formatBinding(binding: ActionBinding): String {
       if (binding.keyCodes.isEmpty()) {

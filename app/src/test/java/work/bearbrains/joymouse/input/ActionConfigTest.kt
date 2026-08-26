@@ -84,6 +84,8 @@ class ActionConfigTest {
     assertThat(config.invertY).isFalse()
     assertThat(config.cursorSpeed).isEqualTo(1.0f)
     assertThat(config.fastCursorSpeed).isEqualTo(2.0f)
+    assertThat(config.deadzone).isEqualTo(ActionConfig.DEFAULT_DEADZONE)
+    assertThat(config.deadzone).isEqualTo(0.10f)
   }
 
   @Test
@@ -132,6 +134,7 @@ class ActionConfigTest {
         invertY = true,
         cursorSpeed = 1.5f,
         fastCursorSpeed = 3.5f,
+        deadzone = 0.15f,
       )
 
     val jsonString = config.toJson()
@@ -154,6 +157,7 @@ class ActionConfigTest {
     assertThat(restored.invertY).isTrue()
     assertThat(restored.cursorSpeed).isEqualTo(1.5f)
     assertThat(restored.fastCursorSpeed).isEqualTo(3.5f)
+    assertThat(restored.deadzone).isEqualTo(0.15f)
 
     // Verify missing actions in JSON fallback to defaults
     assertThat(restored.actionBindings[JoystickAction.CYCLE_DISPLAY_FORWARD]?.keyCodes)
@@ -345,5 +349,14 @@ class ActionConfigTest {
     assertThat(restored.cursorConfig.palette).isEqualTo(CursorPalette.CUSTOM)
     assertThat(restored.cursorConfig.changeShapeForMode).isTrue()
     assertThat(restored.cursorConfig.getColors()).isEqualTo(customColors)
+  }
+
+  @Test
+  fun formatDeadzone_formatsCorrectly() {
+    assertThat(ActionConfig.formatDeadzone(0.10f)).isEqualTo("10%")
+    assertThat(ActionConfig.formatDeadzone(0.05f)).isEqualTo("5%")
+    assertThat(ActionConfig.formatDeadzone(0.0f)).isEqualTo("0%")
+    assertThat(ActionConfig.formatDeadzone(0.25f)).isEqualTo("25%")
+    assertThat(ActionConfig.formatDeadzone(0.50f)).isEqualTo("50%")
   }
 }

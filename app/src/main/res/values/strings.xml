@@ -81,6 +81,10 @@
     <string name="config_section_actions">Actions</string>
     <string name="config_section_special">Special</string>
     <string name="config_mouse_stick_title">Mouse control</string>
+    <string name="config_deadzone_title">Deadzone</string>
+    <string name="config_deadzone_label">Deadzone</string>
+    <string name="config_deadzone_dialog_help">Adjust the thumbstick deadzone to prevent drift. Movement within this range is ignored. Changes are previewed immediately.</string>
+    <string name="config_deadzone_reset_defaults">Reset to default</string>
     <string name="config_modifier_shift_title">Shift modifier</string>
     <string name="config_modifier_alt_title">Alt modifier</string>
     <string name="config_section_toggle_chord">JoyMouse toggle shortcut</string>
