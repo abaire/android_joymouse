@@ -73,8 +73,8 @@ private constructor(
     val dev = device ?: InputDevice.getDevice(deviceId)
     val rangeX = dev?.getMotionRange(config.mouseStick.xAxis)
     val rangeY = dev?.getMotionRange(config.mouseStick.yAxis)
-    xAxis = RangedAxis(config.mouseStick.xAxis, rangeX)
-    yAxis = RangedAxis(config.mouseStick.yAxis, rangeY)
+    xAxis = RangedAxis(config.mouseStick.xAxis, rangeX, config.deadzone)
+    yAxis = RangedAxis(config.mouseStick.yAxis, rangeY, config.deadzone)
   }
 
   private val eventRepeater =
@@ -294,8 +294,8 @@ private constructor(
         device.id,
         displayInfo,
         handler,
-        xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis)),
-        yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis)),
+        xAxis = RangedAxis(xAxis, device.getMotionRange(xAxis), config.deadzone),
+        yAxis = RangedAxis(yAxis, device.getMotionRange(yAxis), config.deadzone),
         buttonAxes,
         nanoClock,
         buttonProcessorFactory,

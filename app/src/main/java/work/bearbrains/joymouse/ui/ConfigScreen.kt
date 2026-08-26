@@ -89,6 +89,7 @@ fun ConfigScreen(
   var isEditingShiftButton by remember { mutableStateOf(false) }
   var isEditingAltButton by remember { mutableStateOf(false) }
   var isEditingMouseStick by remember { mutableStateOf(false) }
+  var isEditingDeadzone by remember { mutableStateOf(false) }
   var isEditingToggleChord by remember { mutableStateOf(false) }
   var isEditingCursorConfig by remember { mutableStateOf(false) }
   var isEditingCursorSpeed by remember { mutableStateOf(false) }
@@ -256,6 +257,14 @@ fun ConfigScreen(
 
       item {
         ModifierButtonCard(
+          title = stringResource(id = R.string.config_deadzone_title),
+          buttonName = ActionConfig.formatDeadzone(actionConfig.deadzone),
+          onClick = { isEditingDeadzone = true },
+        )
+      }
+
+      item {
+        ModifierButtonCard(
           title = stringResource(id = R.string.config_section_toggle_chord),
           buttonName = ActionConfig.formatChord(actionConfig.toggleChord),
           onClick = { isEditingToggleChord = true },
@@ -400,6 +409,26 @@ fun ConfigScreen(
           )
         )
         isEditingMouseStick = false
+      },
+    )
+  }
+
+  if (isEditingDeadzone) {
+    val initialDeadzone = remember { actionConfig.deadzone }
+    DeadzoneDialog(
+      currentDeadzone = actionConfig.deadzone,
+      onDismiss = {
+        isEditingDeadzone = false
+        if (actionConfig.deadzone != initialDeadzone) {
+          onSaveConfig(actionConfig.copy(deadzone = initialDeadzone))
+        }
+      },
+      onSave = { newDeadzone ->
+        onSaveConfig(actionConfig.copy(deadzone = newDeadzone))
+        isEditingDeadzone = false
+      },
+      onPreview = { previewDeadzone ->
+        onSaveConfig(actionConfig.copy(deadzone = previewDeadzone))
       },
     )
   }
@@ -1764,6 +1793,86 @@ private fun CursorSpeedDialog(
     },
     confirmButton = {
       Button(onClick = { onSave(speed, fastSpeed) }) {
+        Text(stringResource(id = R.string.button_save))
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(id = R.string.button_cancel))
+      }
+    },
+  )
+}
+
+@Composable
+private fun DeadzoneDialog(
+  currentDeadzone: Float,
+  onDismiss: () -> Unit,
+  onSave: (Float) -> Unit,
+  onPreview: (Float) -> Unit,
+) {
+  var deadzone by remember { mutableFloatStateOf(currentDeadzone) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(stringResource(id = R.string.config_deadzone_title)) },
+    text = {
+      Column(
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        Text(
+          text = stringResource(id = R.string.config_deadzone_dialog_help),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Text(
+              text = stringResource(id = R.string.config_deadzone_label),
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+              text = "${(deadzone * 100).roundToInt()}%",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.primary,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+          Slider(
+            value = deadzone,
+            onValueChange = {
+              val snapped = (it * 100).roundToInt() / 100f
+              deadzone = snapped
+              onPreview(snapped)
+            },
+            valueRange = 0.0f..0.50f,
+          )
+        }
+
+        // Reset to defaults button
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.End,
+        ) {
+          TextButton(
+            onClick = {
+              deadzone = ActionConfig.DEFAULT_DEADZONE
+              onPreview(deadzone)
+            }
+          ) {
+            Text(stringResource(id = R.string.config_deadzone_reset_defaults))
+          }
+        }
+      }
+    },
+    confirmButton = {
+      Button(onClick = { onSave(deadzone) }) {
         Text(stringResource(id = R.string.button_save))
       }
     },

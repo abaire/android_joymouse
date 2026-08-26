@@ -33,7 +33,7 @@ internal class ButtonAxisTest {
   fun update_withDeflectionBeyondThreshold_isPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE)
 
-    assertThat(sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD)))
+    assertThat(sut.update(makeEvent(THRESHOLD_EVENT_VALUE)))
       .isTrue()
     assertThat(sut.isPositivePressed).isTrue()
     assertThat(sut.isNegativePressed).isFalse()
@@ -42,9 +42,9 @@ internal class ButtonAxisTest {
   @Test
   fun update_whilePressed_withDeflectionBelowThreshold_isReleased() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
-    assertThat(sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD - FUZZ)))
+    assertThat(sut.update(makeEvent(THRESHOLD_EVENT_VALUE - FUZZ)))
       .isTrue()
     assertThat(sut.isPositivePressed).isFalse()
     assertThat(sut.isNegativePressed).isFalse()
@@ -73,7 +73,7 @@ internal class ButtonAxisTest {
   fun update_withNegativeDeflectionBeyondThreshold_isPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE)
 
-    assertThat(sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD)))
+    assertThat(sut.update(makeEvent(-THRESHOLD_EVENT_VALUE)))
       .isTrue()
     assertThat(sut.isPositivePressed).isFalse()
     assertThat(sut.isNegativePressed).isTrue()
@@ -82,10 +82,10 @@ internal class ButtonAxisTest {
   @Test
   fun update_whilePressed_withNegativeDeflectionBelowThreshold_isReleased() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
     assertThat(
-        sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD + FUZZ))
+        sut.update(makeEvent(-THRESHOLD_EVENT_VALUE + FUZZ))
       )
       .isTrue()
     assertThat(sut.isPositivePressed).isFalse()
@@ -96,7 +96,7 @@ internal class ButtonAxisTest {
   fun update_withLatchUntilZero_whenRaisingAboveThreshold_returnsTrue() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
 
-    assertThat(sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD)))
+    assertThat(sut.update(makeEvent(THRESHOLD_EVENT_VALUE)))
       .isTrue()
   }
 
@@ -104,7 +104,7 @@ internal class ButtonAxisTest {
   fun update_withLatchUntilZero_whenRaisingAboveThreshold_setsPositivePressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
 
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
     assertThat(sut.isPositivePressed).isTrue()
     assertThat(sut.isNegativePressed).isFalse()
@@ -113,17 +113,17 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingBelowThreshold_returnsFalse() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
-    assertThat(sut.update(makeEvent(FLAT))).isFalse()
+    assertThat(sut.update(makeEvent(0.55f))).isFalse()
   }
 
   @Test
   fun update_withLatchUntilZero_whenFallingBelowThreshold_remainsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
-    sut.update(makeEvent(FLAT))
+    sut.update(makeEvent(0.55f))
 
     assertThat(sut.isPositivePressed).isTrue()
     assertThat(sut.isNegativePressed).isFalse()
@@ -132,7 +132,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingIntoDeadzone_returnsTrue() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
     assertThat(sut.update(makeEvent(FLAT - EPSILON))).isTrue()
   }
@@ -140,7 +140,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingIntoDeadzone_clearsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
     sut.update(makeEvent(FLAT - EPSILON))
 
@@ -151,7 +151,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenSwingingNegative_returnsTrue() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
     assertThat(sut.update(makeEvent(-1f))).isTrue()
   }
@@ -159,7 +159,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenSwingingNegative_swapsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(THRESHOLD_EVENT_VALUE))
 
     sut.update(makeEvent(-1f))
 
@@ -170,17 +170,17 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingBelowNegativeThreshold_returnsFalse() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
-    assertThat(sut.update(makeEvent(-FLAT))).isFalse()
+    assertThat(sut.update(makeEvent(-0.55f))).isFalse()
   }
 
   @Test
   fun update_withLatchUntilZero_whenFallingBelowNegativeThreshold_remainsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
-    sut.update(makeEvent(-FLAT))
+    sut.update(makeEvent(-0.55f))
 
     assertThat(sut.isPositivePressed).isFalse()
     assertThat(sut.isNegativePressed).isTrue()
@@ -189,7 +189,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingIntoNegativeDeadzone_returnsTrue() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
     assertThat(sut.update(makeEvent(-(FLAT - EPSILON)))).isTrue()
   }
@@ -197,7 +197,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenFallingIntoNegativeDeadzone_clearsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
     sut.update(makeEvent(-(FLAT - EPSILON)))
 
@@ -208,7 +208,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenSwingingPositive_returnsTrue() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
     assertThat(sut.update(makeEvent(1f))).isTrue()
   }
@@ -216,7 +216,7 @@ internal class ButtonAxisTest {
   @Test
   fun update_withLatchUntilZero_whenSwingingPositive_swapsPressed() {
     val sut = ButtonAxis(createRangedAxis(), POSITIVE, NEGATIVE, latchUntilZero = true)
-    sut.update(makeEvent(-ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD))
+    sut.update(makeEvent(-THRESHOLD_EVENT_VALUE))
 
     sut.update(makeEvent(1f))
 
@@ -232,6 +232,10 @@ internal class ButtonAxisTest {
 
     // Deadzone.
     const val FLAT = 0.1f
+
+    // Raw event value corresponding to TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD on normalized axis.
+    const val THRESHOLD_EVENT_VALUE =
+      FLAT + ButtonAxis.TRIGGER_AXIS_AS_BUTTON_DEFLECTION_THRESHOLD * (1f - FLAT)
 
     // Minimum deflection necessary to consider the event a meaningful change.
     const val FUZZ = 0.05f

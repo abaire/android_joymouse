@@ -513,11 +513,11 @@ internal class JoystickCursorStateImplTest {
     val sut = create()
     // Move cursor on X and Y
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.55f)
     sut.update(motionEvent)
     nanoClock.advanceMilliseconds(100)
     whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1f)
-    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.5f)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_RZ)).thenReturn(0.55f)
     sut.update(motionEvent)
 
     // Initial position was (500, 250) on (1000x500).
@@ -685,6 +685,31 @@ internal class JoystickCursorStateImplTest {
     sut.update(motionEvent)
 
     assertThat(sut.pointerX).isEqualTo(initialX + 200f)
+  }
+
+  @Test
+  fun updateActionConfig_withCustomDeadzone_updatesDeadzone() {
+    val sut = create()
+    val initialX = sut.pointerX
+
+    // 0.3f deadzone
+    sut.updateActionConfig(work.bearbrains.joymouse.input.ActionConfig(deadzone = 0.3f))
+
+    // 0.15f and 0.25f are below the 0.3f deadzone -> no movement
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.15f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.25f)
+    sut.update(motionEvent)
+    assertThat(sut.pointerX).isEqualTo(initialX)
+
+    // 0.5f and 1.0f are above the 0.3f deadzone -> moves
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(0.5f)
+    sut.update(motionEvent)
+    nanoClock.advanceMilliseconds(100)
+    whenever(motionEvent.getAxisValue(MotionEvent.AXIS_Z)).thenReturn(1.0f)
+    sut.update(motionEvent)
+    assertThat(sut.pointerX).isGreaterThan(initialX)
   }
 
 
