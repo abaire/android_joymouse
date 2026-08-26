@@ -134,6 +134,12 @@
 
     <string name="config_section_cursor">Cursor</string>
     <string name="config_cursor_appearance_title">Cursor appearance</string>
+    <string name="config_cursor_speed_title">Cursor speed</string>
+    <string name="config_cursor_speed_summary">Normal: %1$.2fx • Fast: %2$.2fx</string>
+    <string name="config_cursor_speed_dialog_help">Adjust cursor speeds and test them live with your joystick. Changes are previewed immediately. Press Cancel or Back to discard.</string>
+    <string name="config_cursor_normal_speed_label">Normal speed</string>
+    <string name="config_cursor_fast_speed_label">Fast speed</string>
+    <string name="config_cursor_speed_reset_defaults">Reset to defaults</string>
     <string name="config_cursor_palette_title">Color palette</string>
     <string name="config_cursor_palette_default">Default</string>
     <string name="config_cursor_palette_colorblind">Colorblind friendly</string>

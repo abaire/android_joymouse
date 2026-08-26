@@ -49,6 +49,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -90,6 +91,7 @@ fun ConfigScreen(
   var isEditingMouseStick by remember { mutableStateOf(false) }
   var isEditingToggleChord by remember { mutableStateOf(false) }
   var isEditingCursorConfig by remember { mutableStateOf(false) }
+  var isEditingCursorSpeed by remember { mutableStateOf(false) }
   var showModifiersHelp by remember { mutableStateOf(false) }
   var showActionsHelp by remember { mutableStateOf(false) }
   var showCursorHelp by remember { mutableStateOf(false) }
@@ -226,6 +228,14 @@ fun ConfigScreen(
         )
       }
 
+      item {
+        CursorSpeedCard(
+          cursorSpeed = actionConfig.cursorSpeed,
+          fastCursorSpeed = actionConfig.fastCursorSpeed,
+          onClick = { isEditingCursorSpeed = true },
+        )
+      }
+
       // Special Section (at the very bottom of the list)
       item {
         Spacer(modifier = Modifier.height(4.dp))
@@ -335,6 +345,42 @@ fun ConfigScreen(
       onSave = { newCursorConfig ->
         onSaveConfig(actionConfig.copy(cursorConfig = newCursorConfig))
         isEditingCursorConfig = false
+      },
+    )
+  }
+
+  if (isEditingCursorSpeed) {
+    val initialSpeed = remember { actionConfig.cursorSpeed }
+    val initialFastSpeed = remember { actionConfig.fastCursorSpeed }
+
+    CursorSpeedDialog(
+      currentSpeed = actionConfig.cursorSpeed,
+      currentFastSpeed = actionConfig.fastCursorSpeed,
+      onDismiss = {
+        onSaveConfig(
+          actionConfig.copy(
+            cursorSpeed = initialSpeed,
+            fastCursorSpeed = initialFastSpeed,
+          )
+        )
+        isEditingCursorSpeed = false
+      },
+      onSave = { newSpeed, newFastSpeed ->
+        onSaveConfig(
+          actionConfig.copy(
+            cursorSpeed = newSpeed,
+            fastCursorSpeed = newFastSpeed,
+          )
+        )
+        isEditingCursorSpeed = false
+      },
+      onPreview = { previewSpeed, previewFastSpeed ->
+        onSaveConfig(
+          actionConfig.copy(
+            cursorSpeed = previewSpeed,
+            fastCursorSpeed = previewFastSpeed,
+          )
+        )
       },
     )
   }
@@ -1560,6 +1606,164 @@ private fun ColorPickerDialog(
     },
     confirmButton = {
       Button(onClick = { onColorSelected(selectedColorInt) }) {
+        Text(stringResource(id = R.string.button_save))
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(id = R.string.button_cancel))
+      }
+    },
+  )
+}
+
+@Composable
+private fun CursorSpeedCard(
+  cursorSpeed: Float,
+  fastCursorSpeed: Float,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Card(
+    modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+    colors =
+      CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+      ),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(LayoutTokens.COLUMN_PADDING),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = stringResource(id = R.string.config_cursor_speed_title),
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+          text =
+            stringResource(
+              id = R.string.config_cursor_speed_summary,
+              cursorSpeed,
+              fastCursorSpeed,
+            ),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.primary,
+          fontWeight = FontWeight.Medium,
+        )
+      }
+      OutlinedButton(onClick = onClick) {
+        Text(stringResource(id = R.string.button_change))
+      }
+    }
+  }
+}
+
+@Composable
+private fun CursorSpeedDialog(
+  currentSpeed: Float,
+  currentFastSpeed: Float,
+  onDismiss: () -> Unit,
+  onSave: (Float, Float) -> Unit,
+  onPreview: (Float, Float) -> Unit,
+) {
+  var speed by remember { mutableFloatStateOf(currentSpeed) }
+  var fastSpeed by remember { mutableFloatStateOf(currentFastSpeed) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(stringResource(id = R.string.config_cursor_speed_title)) },
+    text = {
+      Column(
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        Text(
+          text = stringResource(id = R.string.config_cursor_speed_dialog_help),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        // Normal speed slider
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Text(
+              text = stringResource(id = R.string.config_cursor_normal_speed_label),
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+              text = "%.2fx".format(speed),
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.primary,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+          Slider(
+            value = speed,
+            onValueChange = {
+              val snapped = (it * 20).roundToInt() / 20f
+              speed = snapped
+              onPreview(snapped, fastSpeed)
+            },
+            valueRange = 0.25f..4.0f,
+          )
+        }
+
+        // Fast speed slider
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Text(
+              text = stringResource(id = R.string.config_cursor_fast_speed_label),
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+              text = "%.2fx".format(fastSpeed),
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.primary,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+          Slider(
+            value = fastSpeed,
+            onValueChange = {
+              val snapped = (it * 10).roundToInt() / 10f
+              fastSpeed = snapped
+              onPreview(speed, snapped)
+            },
+            valueRange = 1.0f..8.0f,
+          )
+        }
+
+        // Reset to defaults button
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.End,
+        ) {
+          TextButton(
+            onClick = {
+              speed = ActionConfig.DEFAULT_CURSOR_SPEED
+              fastSpeed = ActionConfig.DEFAULT_FAST_CURSOR_SPEED
+              onPreview(speed, fastSpeed)
+            }
+          ) {
+            Text(stringResource(id = R.string.config_cursor_speed_reset_defaults))
+          }
+        }
+      }
+    },
+    confirmButton = {
+      Button(onClick = { onSave(speed, fastSpeed) }) {
         Text(stringResource(id = R.string.button_save))
       }
     },
