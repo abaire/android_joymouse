@@ -470,30 +470,73 @@ data class ActionConfig(
       return keyCodes.map { getButtonDisplayName(it) }.joinToString(" + ") { "`$it`" }
     }
 
+    fun formatBindingWithModifier(binding: ActionBinding, config: ActionConfig): String {
+      if (binding.keyCodes.isEmpty()) {
+        return "Unassigned"
+      }
+      val modifierPrefix =
+        when (binding.modifier) {
+          ShiftModifier.NONE -> ""
+          ShiftModifier.SHIFT -> getButtonDisplayName(config.shiftButton) + " + "
+          ShiftModifier.ALT -> getButtonDisplayName(config.altButton) + " + "
+          ShiftModifier.ALTSHIFT ->
+            "${getButtonDisplayName(config.shiftButton)} + ${getButtonDisplayName(config.altButton)} + "
+        }
+      val buttonNames = binding.keyCodes.map { getButtonDisplayName(it) }
+      return if (binding.isChord) {
+        modifierPrefix + buttonNames.joinToString(" + ")
+      } else {
+        buttonNames.joinToString(" or ") { modifierPrefix + it }
+      }
+    }
+
+    fun getBindingButtonGroups(binding: ActionBinding, config: ActionConfig): List<List<String>> {
+      if (binding.keyCodes.isEmpty()) {
+        return emptyList()
+      }
+      val modifierButtons =
+        when (binding.modifier) {
+          ShiftModifier.NONE -> emptyList()
+          ShiftModifier.SHIFT -> listOf(getButtonDisplayName(config.shiftButton))
+          ShiftModifier.ALT -> listOf(getButtonDisplayName(config.altButton))
+          ShiftModifier.ALTSHIFT ->
+            listOf(
+              getButtonDisplayName(config.shiftButton),
+              getButtonDisplayName(config.altButton),
+            )
+        }
+      val buttonNames = binding.keyCodes.map { getButtonDisplayName(it) }
+      return if (binding.isChord) {
+        listOf(modifierButtons + buttonNames)
+      } else {
+        buttonNames.map { modifierButtons + listOf(it) }
+      }
+    }
+
     fun getActionDisplayName(action: JoystickAction): String {
       return when (action) {
         JoystickAction.BACK -> "Back"
         JoystickAction.HOME -> "Home"
-        JoystickAction.RECENTS -> "Recent apps"
-        JoystickAction.ACTIVATE -> "Activate"
+        JoystickAction.RECENTS -> "Recent"
+        JoystickAction.ACTIVATE -> "Activate at cursor"
         JoystickAction.DPAD_UP -> "D-pad up"
         JoystickAction.DPAD_DOWN -> "D-pad down"
         JoystickAction.DPAD_LEFT -> "D-pad left"
         JoystickAction.DPAD_RIGHT -> "D-pad right"
-        JoystickAction.CYCLE_DISPLAY_BACKWARD -> "Switch to previous display"
-        JoystickAction.CYCLE_DISPLAY_FORWARD -> "Switch to next display"
-        JoystickAction.SELECT_PRIMARY_DEVICE -> "Choose active controller"
+        JoystickAction.CYCLE_DISPLAY_BACKWARD -> "Move to previous display"
+        JoystickAction.CYCLE_DISPLAY_FORWARD -> "Move to next display"
+        JoystickAction.SELECT_PRIMARY_DEVICE -> "Select active controller"
         JoystickAction.SWIPE_UP -> "Fling up"
         JoystickAction.SWIPE_DOWN -> "Fling down"
         JoystickAction.SWIPE_LEFT -> "Fling left"
         JoystickAction.SWIPE_RIGHT -> "Fling right"
-        JoystickAction.TOGGLE_GESTURE -> "Toggle drag or fling gesture"
-        JoystickAction.TOGGLE_ENABLED -> "Toggle JoyMouse shortcut"
+        JoystickAction.TOGGLE_GESTURE -> "Toggle drag/fling"
+        JoystickAction.TOGGLE_ENABLED -> "Toggle JoyMouse"
         JoystickAction.PRIMARY_PRESS,
         JoystickAction.PRIMARY_RELEASE -> "Primary click"
         JoystickAction.FAST_CURSOR,
         JoystickAction.FAST_CURSOR_PRESS,
-        JoystickAction.FAST_CURSOR_RELEASE -> "Fast cursor"
+        JoystickAction.FAST_CURSOR_RELEASE -> "Move cursor faster"
       }
     }
 

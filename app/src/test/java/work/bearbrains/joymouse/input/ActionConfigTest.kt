@@ -194,16 +194,84 @@ class ActionConfigTest {
   }
 
   @Test
+  fun formatBindingWithModifier_formatsWithActiveModifiers() {
+    val config = ActionConfig.DEFAULT // shift = L2 (Left trigger), alt = R2 (Right trigger)
+
+    val unshifted =
+      ActionBinding(
+        ShiftModifier.NONE,
+        setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_B),
+      )
+    assertThat(ActionConfig.formatBindingWithModifier(unshifted, config))
+      .isEqualTo("Select or B")
+
+    val shiftAction = ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_R1))
+    assertThat(ActionConfig.formatBindingWithModifier(shiftAction, config))
+      .isEqualTo("Left trigger + Right bumper")
+
+    val altAction = ActionBinding(ShiftModifier.ALT, setOf(KeyEvent.KEYCODE_DPAD_UP))
+    assertThat(ActionConfig.formatBindingWithModifier(altAction, config))
+      .isEqualTo("Right trigger + D-pad up")
+
+    val dualShift =
+      ActionBinding(ShiftModifier.ALTSHIFT, setOf(KeyEvent.KEYCODE_BUTTON_X))
+    assertThat(ActionConfig.formatBindingWithModifier(dualShift, config))
+      .isEqualTo("Left trigger + Right trigger + X")
+
+    val chord =
+      ActionBinding(
+        ShiftModifier.SHIFT,
+        setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1),
+        isChord = true,
+      )
+    assertThat(ActionConfig.formatBindingWithModifier(chord, config))
+      .isEqualTo("Left trigger + Left bumper + Right bumper")
+
+    val unassigned = ActionBinding(ShiftModifier.NONE, emptySet())
+    assertThat(ActionConfig.formatBindingWithModifier(unassigned, config)).isEqualTo("Unassigned")
+  }
+
+  @Test
+  fun getBindingButtonGroups_returnsStructuredButtonGroups() {
+    val config = ActionConfig.DEFAULT
+
+    val unshifted =
+      ActionBinding(
+        ShiftModifier.NONE,
+        setOf(KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_B),
+      )
+    assertThat(ActionConfig.getBindingButtonGroups(unshifted, config))
+      .containsExactly(listOf("Select"), listOf("B"))
+
+    val shiftAction = ActionBinding(ShiftModifier.SHIFT, setOf(KeyEvent.KEYCODE_BUTTON_R1))
+    assertThat(ActionConfig.getBindingButtonGroups(shiftAction, config))
+      .containsExactly(listOf("Left trigger", "Right bumper"))
+
+    val chord =
+      ActionBinding(
+        ShiftModifier.SHIFT,
+        setOf(KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1),
+        isChord = true,
+      )
+    assertThat(ActionConfig.getBindingButtonGroups(chord, config))
+      .containsExactly(listOf("Left trigger", "Left bumper", "Right bumper"))
+  }
+
+  @Test
   fun actionDisplayName_usesGoogleStyleTitleCasing() {
     assertThat(ActionConfig.getActionDisplayName(JoystickAction.SWIPE_UP)).isEqualTo("Fling up")
     assertThat(ActionConfig.getActionDisplayName(JoystickAction.SWIPE_DOWN)).isEqualTo("Fling down")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.CYCLE_DISPLAY_FORWARD)).isEqualTo("Switch to next display")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.CYCLE_DISPLAY_BACKWARD)).isEqualTo("Switch to previous display")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.SELECT_PRIMARY_DEVICE)).isEqualTo("Choose active controller")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.TOGGLE_GESTURE)).isEqualTo("Toggle drag or fling gesture")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.RECENTS)).isEqualTo("Recent apps")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.ACTIVATE)).isEqualTo("Activate")
-    assertThat(ActionConfig.getActionDisplayName(JoystickAction.FAST_CURSOR)).isEqualTo("Fast cursor")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.CYCLE_DISPLAY_FORWARD))
+      .isEqualTo("Move to next display")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.CYCLE_DISPLAY_BACKWARD))
+      .isEqualTo("Move to previous display")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.SELECT_PRIMARY_DEVICE))
+      .isEqualTo("Select active controller")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.TOGGLE_GESTURE))
+      .isEqualTo("Toggle drag/fling")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.RECENTS)).isEqualTo("Recent")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.ACTIVATE)).isEqualTo("Activate at cursor")
+    assertThat(ActionConfig.getActionDisplayName(JoystickAction.FAST_CURSOR)).isEqualTo("Move cursor faster")
   }
 
   @Test
